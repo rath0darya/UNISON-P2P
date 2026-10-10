@@ -12,9 +12,10 @@ A mobile-first, native-Android-style web prototype for decentralized private pee
 - Shareable invite links as the primary contact-sharing flow; opening a link takes the recipient to the Join screen with the peer ID filled in.
 - Optional on-screen QR invitation from Identity, generated in the browser using QRCode.js; QR scanning remains an alternative for nearby users.
 - Peer ID entry with validation, duplicate/self checks, peer list, and optional camera QR scanning on supported browsers. QR scanning accepts either a peer ID or an invite link encoded in a QR code.
-- Direct WebRTC data-channel chat with automatic signed offer/answer exchange through the optional self-deployed signaling service; manual pairing remains available as a fallback.
+- Direct WebRTC data-channel chat with automatic signed offer/answer exchange through the signaling service. Add a contact using only their peer ID; manual offer/answer pairing has been removed from the chat UI.
 - Signed connection descriptions. The app verifies that the signaling public key hashes to the claimed peer ID and checks its ECDSA signature.
 - Text chat over the WebRTC data channel. WebRTC provides encrypted transport between connected peers.
+- In-chat audio and video calls, incoming-call accept/decline controls, mute, hang up, and switching between audio-only and video during an active call (browser microphone/camera permission required).
 - WhatsApp-style message status: one tick for sent, two gray ticks for delivered, and two green ticks after the recipient opens the chat and sends a read receipt.
 - Telegram-inspired full-screen conversation layout on mobile, with a scrollable message area and composer anchored at the bottom.
 - Messages are encrypted with a device-held AES-GCM key before being saved in IndexedDB, survive refresh on the same browser profile, and are removed after their selected 48- or 72-hour lifetime when cleanup runs.
