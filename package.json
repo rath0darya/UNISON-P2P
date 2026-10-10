@@ -1,0 +1,16 @@
+{
+  "name": "unison-p2p-signaling",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Relay-only WebRTC signaling for UNISON P2P; never stores chat messages.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
