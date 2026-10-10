@@ -59,3 +59,10 @@ Then open http://localhost:8080. Localhost is for testing on that device only; i
 - Web and Android clients should eventually share a versioned open protocol.
 
 The project remains a prototype. Decentralization, end-to-end security, privacy, and deletion claims must be evaluated against the actual deployment and threat model.
+
+## Chat interface and peer IDs
+
+- Chat screen uses outgoing/incoming message bubbles, date separators, a bottom composer, and local device time formatting. Times are formatted using the browser/device locale and time zone; each participant sees their own local time.
+- Peer IDs are displayed and accepted as uppercase 20-character Base32 strings. Existing browser-stored lowercase IDs are normalized when the app starts.
+- A peer ID/hash identifies an identity; it cannot by itself establish a live WebRTC connection. This prototype still requires signed offer/answer exchange. A signaling service would be needed to make connection setup automatic without weakening identity verification.
+- Adding salt or punctuation to the displayed peer ID would not by itself improve connection security. The identity is derived from a public-key hash, and connection descriptions remain signature-verified; WebRTC encrypts data in transit.
