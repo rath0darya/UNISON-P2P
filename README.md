@@ -47,7 +47,7 @@ Serve the repository over HTTPS or localhost (required for secure browser crypto
 python3 -m http.server 8080
 ```
 
-Then open http://localhost:8080.
+Then open http://localhost:8080. Localhost is for testing on that device only; invite links for friends abroad require a publicly reachable HTTPS deployment.
 
 ## Design principles
 
