@@ -33,7 +33,7 @@ QR remains optional: **Identity → Show QR code** and **Join → Scan QR**. Inv
 
 ## Current limitations — not production ready
 
-- No public relay network for chat traffic, TURN fallback, voice/video calls, group chat, file transfer, or native Android package. The signaling service must be deployed and configured separately.
+- No public relay network for chat traffic, TURN fallback, voice/video calls, group chat, file transfer, or native Android package. The signaling service and static frontend are defined in `render.yaml` but still need to be deployed by the repository owner.
 - Invite links add contacts but do not themselves connect them. Automatic signaling works only after a public signaling service is deployed and configured by both users. The service is not hosted by this repository.
 - Chat history is encrypted at rest in the same browser profile and can survive refresh on that device. It is not synced between devices; expiry cleanup runs while the app is open and on startup, not guaranteed at the exact expiry moment while the app is closed.
 - The identity is stored in browser IndexedDB. Secure encrypted identity export/import and sharing the same identity between web and Android are not implemented.
@@ -56,7 +56,7 @@ Then open http://localhost:8080. Localhost is for testing on that device only; i
 - No mandatory account, email, phone number, or real name.
 - Cryptographic peer identity rather than a central account.
 - Direct peer-to-peer communication where the network permits it.
-- Message content is intended to expire after 48 or 72 hours; the current chat prototype supports a 48- or 72-hour in-memory expiry.
+- Message content is intended to expire after 48 or 72 hours; this version encrypts stored history in IndexedDB and cleans expired messages on startup and periodically while open. Browser/device storage removal is not guaranteed while the app is closed.
 - Web and Android clients should eventually share a versioned open protocol.
 
 The project remains a prototype. Decentralization, end-to-end security, privacy, and deletion claims must be evaluated against the actual deployment and threat model.
@@ -65,5 +65,5 @@ The project remains a prototype. Decentralization, end-to-end security, privacy,
 
 - Chat screen uses outgoing/incoming message bubbles, date separators, a bottom composer, and local device time formatting. Times are formatted using the browser/device locale and time zone; each participant sees their own local time.
 - Peer IDs are displayed and accepted as uppercase 20-character Base32 strings. Existing browser-stored lowercase IDs are normalized when the app starts.
-- A peer ID/hash identifies an identity; it cannot by itself establish a live WebRTC connection. This prototype still requires signed offer/answer exchange. A signaling service would be needed to make connection setup automatic without weakening identity verification.
+- A peer ID/hash identifies an identity; it cannot by itself establish a live WebRTC connection. After the signaling service is deployed and configured, signed offer/answer exchange happens automatically; manual pairing remains available as a fallback.
 - Adding salt or punctuation to the displayed peer ID would not by itself improve connection security. The identity is derived from a public-key hash, and connection descriptions remain signature-verified; WebRTC encrypts data in transit.
