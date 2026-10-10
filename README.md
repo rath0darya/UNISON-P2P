@@ -18,7 +18,7 @@ A mobile-first, native-Android-style web prototype for a privacy-first decentral
 
 The current build does **not** implement QR encoding/scanning, peer discovery, the custom P2P protocol, direct connections, message sending/receiving, calls, encrypted identity transfer, or the actual 48/72-hour deletion engine. The join code screen validates format only; it does not connect users. Do not use this prototype to store sensitive identity material or claim production-grade security.
 
-The local identity is a first implementation milestone, not a completed security design. The generated Web Crypto private key is stored as a CryptoKey in IndexedDB, but this prototype has not undergone security review. Browser data can be cleared by the user, the browser, or the operating system. An identity can only persist across devices after a secure export/import mechanism is implemented.
+The current identity feature is an initial implementation milestone, not a completed security design. The generated Web Crypto private key is stored as a CryptoKey in IndexedDB, but this prototype has not undergone security review. Browser data can be cleared by the user, the browser, or the operating system. An identity can only persist across devices after a secure export/import mechanism is implemented.
 
 ## Run locally
 
@@ -44,7 +44,7 @@ Then open http://localhost:8080.
 
 - No mandatory account, email, phone number, or real name.
 - Identity is derived from cryptographic public-key material, not from a central account.
-- Local-first storage by default.
+- User-controlled device storage; no central account is required.
 - Message content is intended to expire after 48 or 72 hours.
 - No central permanent message archive.
 - Web and Android clients should share a versioned open protocol.
