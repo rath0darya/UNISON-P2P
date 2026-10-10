@@ -10,13 +10,15 @@ A mobile-first, native-Android-style web prototype for a privacy-first decentral
 - Welcome, Join, Identity, and Privacy screens.
 - Local cryptographic identity generation using the browser Web Crypto API (ECDSA P-256); a short peer ID is derived from the public key.
 - Identity record stored in this browser's IndexedDB.
-- 16–20-character join-code format validation.
+- Peer ID entry with validation and duplicate/self checks.
+- Saved peer list persisted in IndexedDB.
+- Optional camera QR scanning in browsers that support `BarcodeDetector` (QR must contain a 20-character peer ID).
 - PWA manifest and a minimal same-origin app-shell service worker.
 - Message-retention policy shown as a design target: 48 or 72 hours.
 
 ## Important: this is not yet a working messaging network
 
-The current build does **not** implement QR encoding/scanning, peer discovery, the custom P2P protocol, direct connections, message sending/receiving, calls, encrypted identity transfer, or the actual 48/72-hour deletion engine. The join code screen validates format only; it does not connect users. Do not use this prototype to store sensitive identity material or claim production-grade security.
+The current build does **not** implement QR generation, peer discovery, the custom P2P protocol, direct connections, message sending/receiving, calls, encrypted identity transfer, or the actual 48/72-hour deletion engine. Join currently saves a peer ID as a pending contact; it does not connect users. QR scanning depends on browser `BarcodeDetector` support and accepts a QR containing a peer ID. Do not use this prototype to store sensitive identity material or claim production-grade security.
 
 The current identity feature is an initial implementation milestone, not a completed security design. The generated Web Crypto private key is stored as a CryptoKey in IndexedDB, but this prototype has not undergone security review. Browser data can be cleared by the user, the browser, or the operating system. An identity can only persist across devices after a secure export/import mechanism is implemented.
 
@@ -33,7 +35,7 @@ Then open http://localhost:8080.
 ## Suggested next milestones
 
 1. Review identity/key format and threat model.
-2. Implement QR invitation encoding and camera scanning without exposing invitation secrets.
+2. Implement QR invitation encoding and broaden camera scanning support without exposing invitation secrets.
 3. Specify the shared protocol and peer authentication.
 4. Add direct peer messaging and explicit connection-state UI.
 5. Implement expiry enforcement, cleanup, and tests across local storage/caches.
