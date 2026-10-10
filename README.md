@@ -13,7 +13,7 @@ A mobile-first, native-Android-style web prototype for decentralized private pee
 - Direct WebRTC data-channel connection flow using manually exchanged offer/answer text; no signaling server is required.
 - Signed connection descriptions. The app verifies that the signaling public key hashes to the claimed peer ID and checks its ECDSA signature.
 - Text chat over the WebRTC data channel. WebRTC provides encrypted transport between connected peers.
-- Incoming messages are checked for expiry and messages in the running chat are removed after 48 hours.
+- Incoming messages are checked for expiry; users can choose a 48- or 72-hour lifetime and expired in-memory messages are cleaned while the app is running.
 - PWA manifest and same-origin service-worker app shell.
 
 ## How to connect two devices
@@ -30,7 +30,7 @@ Connection descriptions are signed and validated against the expected saved peer
 
 - No automatic peer discovery, public relay network, TURN fallback, voice/video calls, group chat, file transfer, or native Android package.
 - Manual signaling text is a bootstrap mechanism; a user must exchange offer/answer data out of band.
-- Chat history is held in memory only and is lost when the page reloads. Messages have a 48-hour expiry while the app is running, but background deletion, persistent encrypted storage, and cross-device deletion are not implemented.
+- Chat history is held in memory only and is lost when the page reloads. Messages have a selectable 48- or 72-hour expiry while the app is running, but background deletion, persistent encrypted storage, and cross-device deletion are not implemented.
 - The identity is stored in browser IndexedDB. Secure encrypted identity export/import and sharing the same identity between web and Android are not implemented.
 - WebRTC encrypts the connection in transit, and signaling data is identity-signed, but the overall protocol has not received independent cryptographic review. Do not treat this prototype as audited or production-grade security.
 - STUN can reveal network metadata such as public IP information to the STUN provider and peers may learn network information during connection setup. This prototype does not promise anonymity.
@@ -51,7 +51,7 @@ Then open http://localhost:8080.
 - No mandatory account, email, phone number, or real name.
 - Cryptographic peer identity rather than a central account.
 - Direct peer-to-peer communication where the network permits it.
-- Message content is intended to expire after 48 or 72 hours; the current chat prototype uses a 48-hour in-memory expiry.
+- Message content is intended to expire after 48 or 72 hours; the current chat prototype supports a 48- or 72-hour in-memory expiry.
 - Web and Android clients should eventually share a versioned open protocol.
 
 The project remains a prototype. Decentralization, end-to-end security, privacy, and deletion claims must be evaluated against the actual deployment and threat model.
