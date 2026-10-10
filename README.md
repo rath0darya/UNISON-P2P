@@ -15,6 +15,8 @@ A mobile-first, native-Android-style web prototype for decentralized private pee
 - Direct WebRTC data-channel chat with automatic signed offer/answer exchange through the optional self-deployed signaling service; manual pairing remains available as a fallback.
 - Signed connection descriptions. The app verifies that the signaling public key hashes to the claimed peer ID and checks its ECDSA signature.
 - Text chat over the WebRTC data channel. WebRTC provides encrypted transport between connected peers.
+- WhatsApp-style message status: one tick for sent, two gray ticks for delivered, and two green ticks after the recipient opens the chat and sends a read receipt.
+- Telegram-inspired full-screen conversation layout on mobile, with a scrollable message area and composer anchored at the bottom.
 - Messages are encrypted with a device-held AES-GCM key before being saved in IndexedDB, survive refresh on the same browser profile, and are removed after their selected 48- or 72-hour lifetime when cleanup runs.
 - PWA manifest and same-origin service-worker app shell.
 
@@ -63,7 +65,7 @@ The project remains a prototype. Decentralization, end-to-end security, privacy,
 
 ## Chat interface and peer IDs
 
-- Chat screen uses outgoing/incoming message bubbles, date separators, a bottom composer, and local device time formatting. Times are formatted using the browser/device locale and time zone; each participant sees their own local time.
+- Chat screen uses a full-screen mobile layout with outgoing/incoming message bubbles, date separators, a bottom composer, and local device time formatting. Outgoing messages show sent/delivered/read ticks when receipt messages are exchanged. Times are formatted using the browser/device locale and time zone; each participant sees their own local time.
 - Peer IDs are displayed and accepted as uppercase 20-character Base32 strings. Existing browser-stored lowercase IDs are normalized when the app starts.
 - A peer ID/hash identifies an identity; it cannot by itself establish a live WebRTC connection. After the signaling service is deployed and configured, signed offer/answer exchange happens automatically; manual pairing remains available as a fallback.
 - Adding salt or punctuation to the displayed peer ID would not by itself improve connection security. The identity is derived from a public-key hash, and connection descriptions remain signature-verified; WebRTC encrypts data in transit.
