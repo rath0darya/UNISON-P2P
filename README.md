@@ -12,29 +12,30 @@ A mobile-first, native-Android-style web prototype for decentralized private pee
 - Shareable invite links as the primary contact-sharing flow; opening a link takes the recipient to the Join screen with the peer ID filled in.
 - Optional on-screen QR invitation from Identity, generated in the browser using QRCode.js; QR scanning remains an alternative for nearby users.
 - Peer ID entry with validation, duplicate/self checks, peer list, and optional camera QR scanning on supported browsers. QR scanning accepts either a peer ID or an invite link encoded in a QR code.
-- Direct WebRTC data-channel connection flow using manually exchanged offer/answer text; no signaling server is required.
+- Direct WebRTC data-channel chat with automatic signed offer/answer exchange through the optional self-deployed signaling service; manual pairing remains available as a fallback.
 - Signed connection descriptions. The app verifies that the signaling public key hashes to the claimed peer ID and checks its ECDSA signature.
 - Text chat over the WebRTC data channel. WebRTC provides encrypted transport between connected peers.
-- Incoming messages are checked for expiry; users can choose a 48- or 72-hour lifetime and expired in-memory messages are cleaned while the app is running.
+- Messages are encrypted with a device-held AES-GCM key before being saved in IndexedDB, survive refresh on the same browser profile, and are removed after their selected 48- or 72-hour lifetime when cleanup runs.
 - PWA manifest and same-origin service-worker app shell.
 
-## Friend invitations and current connection setup
+## Friend invitations and automatic connection setup
 
-1. Serve the app from HTTPS or localhost and create an identity.
-2. On Home, tap **Share invite link**. Send that link through any messaging app, email, or other channel to a friend in any country. If the system share sheet is unavailable, the link is copied instead. **Copy invite link** is also available.
-3. Your friend opens the link; UNISON opens Join with your peer ID filled in. They tap **Add friend**. This saves the contact, but does not by itself establish a live connection.
-4. QR is an optional alternative: the sender opens **Identity → Show QR code** and the recipient opens **Join → Scan QR**. The QR contains the invite link. Camera scanning requires browser support and permission. The QR generator library is loaded from a CDN, so QR display needs internet access; sharing a link does not require the QR library.
-5. To start a live chat in this prototype, both users must still exchange the signed WebRTC offer/answer text out of band: the offer creator sends an offer; the other person accepts it and sends back the answer; the offer creator finishes with that answer.
+1. Serve the app from HTTPS and create an identity.
+2. On Home, tap **Share invite link** and send it to your friend in any country. The link contains your peer ID, not private keys or chat messages.
+3. Your friend opens the link and taps **Add friend**. Both people must add each other's peer IDs to their saved peer lists.
+4. Deploy the included signaling service using the repository's `render.yaml` blueprint (or deploy `server.js` as a Node.js web service). The service needs Node.js 20+ and runs with `npm install` followed by `npm start`. Its health endpoint is `/health`.
+5. Copy the deployed service's secure WebSocket URL, such as `wss://your-service.onrender.com`. In UNISON, open **Privacy → Signaling service URL**, paste the URL, and tap **Save & connect**. Both users configure the same URL once in their own browsers.
+6. Open the saved peer chat. The client exchanges signed WebRTC offers/answers through the signaling service and verifies the peer ID and signature before applying them. When both peers are online, the lower peer ID initiates to avoid both sides starting offers at once. Signals can be queued for up to 10 minutes while a peer is offline; both people should open UNISON within that window for a fresh connection.
 
-Invite links contain only the peer ID. They do not contain private keys or chat messages. Links make contact sharing easier across countries, but this prototype still needs a signaling/discovery mechanism to remove the manual offer/answer step.
+The signaling service relays only signed connection setup descriptions. It does not receive the WebRTC chat data channel or store chat message content. The service sees peer IDs, connection metadata, and SDP/IP-routing details, so it is not an anonymity service. Use a service you trust. If a direct WebRTC path is blocked by a network, this version has no TURN media/data relay fallback and may fail to connect.
 
-Connection descriptions are signed and validated against the expected saved peer ID. Never accept connection text from an unknown peer. The initial implementation uses a public STUN server to help establish direct routes; some networks may not permit a direct connection. A TURN relay fallback is not configured.
+QR remains optional: **Identity → Show QR code** and **Join → Scan QR**. Invite links are easier for friends in different countries.
 
 ## Current limitations — not production ready
 
-- No automatic peer discovery, public relay network, TURN fallback, voice/video calls, group chat, file transfer, or native Android package.
-- Invite links simplify adding a contact but do not connect peers by themselves. Manual signaling text is still required for a live connection; automatic cross-country discovery/signaling and a relay fallback are not implemented.
-- Chat history is held in memory only and is lost when the page reloads. Messages have a selectable 48- or 72-hour expiry while the app is running, but background deletion, persistent encrypted storage, and cross-device deletion are not implemented.
+- No public relay network for chat traffic, TURN fallback, voice/video calls, group chat, file transfer, or native Android package. The signaling service must be deployed and configured separately.
+- Invite links add contacts but do not themselves connect them. Automatic signaling works only after a public signaling service is deployed and configured by both users. The service is not hosted by this repository.
+- Chat history is encrypted at rest in the same browser profile and can survive refresh on that device. It is not synced between devices; expiry cleanup runs while the app is open and on startup, not guaranteed at the exact expiry moment while the app is closed.
 - The identity is stored in browser IndexedDB. Secure encrypted identity export/import and sharing the same identity between web and Android are not implemented.
 - WebRTC encrypts the connection in transit, and signaling data is identity-signed, but the overall protocol has not received independent cryptographic review. Do not treat this prototype as audited or production-grade security.
 - STUN can reveal network metadata such as public IP information to the STUN provider and peers may learn network information during connection setup. This prototype does not promise anonymity.
