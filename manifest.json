@@ -9,6 +9,16 @@
   "orientation": "portrait-primary",
   "background_color": "#101116",
   "theme_color": "#101116",
-  "categories": ["communication", "social"],
-  "icons": []
+  "categories": [
+    "communication",
+    "social"
+  ],
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
 }
