@@ -1,0 +1,14 @@
+{
+  "id": "./",
+  "name": "UNISON P2P",
+  "short_name": "UNISON",
+  "description": "Private, local-first peer-to-peer communication.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#101116",
+  "theme_color": "#101116",
+  "categories": ["communication", "social"],
+  "icons": []
+}
