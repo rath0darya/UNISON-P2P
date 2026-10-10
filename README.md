@@ -10,6 +10,7 @@ A mobile-first, native-Android-style web prototype for decentralized private pee
 - Cryptographic identity generation using Web Crypto ECDSA P-256; a 20-character peer ID is derived from the public key.
 - Identity record stored in this browser's IndexedDB.
 - Shareable invite links as the primary contact-sharing flow; opening a link takes the recipient to the Join screen with the peer ID filled in.
+- Optional on-screen QR invitation from Identity, generated in the browser using QRCode.js; QR scanning remains an alternative for nearby users.
 - Peer ID entry with validation, duplicate/self checks, peer list, and optional camera QR scanning on supported browsers. QR scanning accepts either a peer ID or an invite link encoded in a QR code.
 - Direct WebRTC data-channel connection flow using manually exchanged offer/answer text; no signaling server is required.
 - Signed connection descriptions. The app verifies that the signaling public key hashes to the claimed peer ID and checks its ECDSA signature.
@@ -22,7 +23,7 @@ A mobile-first, native-Android-style web prototype for decentralized private pee
 1. Serve the app from HTTPS or localhost and create an identity.
 2. On Home, tap **Share invite link**. Send that link through any messaging app, email, or other channel to a friend in any country. If the system share sheet is unavailable, the link is copied instead. **Copy invite link** is also available.
 3. Your friend opens the link; UNISON opens Join with your peer ID filled in. They tap **Add friend**. This saves the contact, but does not by itself establish a live connection.
-4. QR is an optional alternative: open **Join → Scan QR** and scan a QR containing the invite link or peer ID. Camera scanning requires browser support and permission.
+4. QR is an optional alternative: the sender opens **Identity → Show QR code** and the recipient opens **Join → Scan QR**. The QR contains the invite link. Camera scanning requires browser support and permission. The QR generator library is loaded from a CDN, so QR display needs internet access; sharing a link does not require the QR library.
 5. To start a live chat in this prototype, both users must still exchange the signed WebRTC offer/answer text out of band: the offer creator sends an offer; the other person accepts it and sends back the answer; the offer creator finishes with that answer.
 
 Invite links contain only the peer ID. They do not contain private keys or chat messages. Links make contact sharing easier across countries, but this prototype still needs a signaling/discovery mechanism to remove the manual offer/answer step.
