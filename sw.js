@@ -1,5 +1,5 @@
 'use strict';
-const CACHE_NAME = 'unison-p2p-shell-v12';
+const CACHE_NAME = 'unison-p2p-shell-v13';
 const APP_SHELL = ['./', './index.html', './manifest.json'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
