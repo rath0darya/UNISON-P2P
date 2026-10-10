@@ -35,7 +35,7 @@ function verifySignal(s) {
     if (out.slice(0, 20) !== s.id) return false;
     const key = crypto.createPublicKey({ key: s.publicJwk, format: 'jwk' });
     const payload = JSON.stringify({ version: s.version, type: s.type, id: s.id, to: s.to, publicJwk: s.publicJwk, sdp: s.sdp });
-    return crypto.verify('sha256', Buffer.from(payload), key, Buffer.from(s.signature, 'base64'));
+    return crypto.verify('sha256', Buffer.from(payload), { key, dsaEncoding: 'ieee-p1363' }, Buffer.from(s.signature, 'base64'));
   } catch { return false; }
 }
 function send(ws, data) {
