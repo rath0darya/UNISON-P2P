@@ -9,27 +9,30 @@ A mobile-first, native-Android-style web prototype for decentralized private pee
 - Responsive app-style Home, Join, Identity, and Privacy screens.
 - Cryptographic identity generation using Web Crypto ECDSA P-256; a 20-character peer ID is derived from the public key.
 - Identity record stored in this browser's IndexedDB.
-- Peer ID entry with validation, duplicate/self checks, peer list, and optional camera QR scanning on supported browsers.
+- Shareable invite links as the primary contact-sharing flow; opening a link takes the recipient to the Join screen with the peer ID filled in.
+- Peer ID entry with validation, duplicate/self checks, peer list, and optional camera QR scanning on supported browsers. QR scanning accepts either a peer ID or an invite link encoded in a QR code.
 - Direct WebRTC data-channel connection flow using manually exchanged offer/answer text; no signaling server is required.
 - Signed connection descriptions. The app verifies that the signaling public key hashes to the claimed peer ID and checks its ECDSA signature.
 - Text chat over the WebRTC data channel. WebRTC provides encrypted transport between connected peers.
 - Incoming messages are checked for expiry; users can choose a 48- or 72-hour lifetime and expired in-memory messages are cleaned while the app is running.
 - PWA manifest and same-origin service-worker app shell.
 
-## How to connect two devices
+## Friend invitations and current connection setup
 
-1. Serve the app from HTTPS or localhost on both devices and create an identity on each.
-2. Exchange the 20-character peer IDs and add each other in **Join**.
-3. On device A, open the saved peer and choose **Create connection offer**. Copy the full generated text and send it to device B through a channel you trust.
-4. On device B, open the matching saved peer, paste A's text, and choose **Accept offer and create answer**. Send the generated answer text back to A.
-5. On device A, paste the answer and choose **Finish connection with answer**. When the direct data channel opens, the status becomes connected and the chat appears.
+1. Serve the app from HTTPS or localhost and create an identity.
+2. On Home, tap **Share invite link**. Send that link through any messaging app, email, or other channel to a friend in any country. If the system share sheet is unavailable, the link is copied instead. **Copy invite link** is also available.
+3. Your friend opens the link; UNISON opens Join with your peer ID filled in. They tap **Add friend**. This saves the contact, but does not by itself establish a live connection.
+4. QR is an optional alternative: open **Join → Scan QR** and scan a QR containing the invite link or peer ID. Camera scanning requires browser support and permission.
+5. To start a live chat in this prototype, both users must still exchange the signed WebRTC offer/answer text out of band: the offer creator sends an offer; the other person accepts it and sends back the answer; the offer creator finishes with that answer.
+
+Invite links contain only the peer ID. They do not contain private keys or chat messages. Links make contact sharing easier across countries, but this prototype still needs a signaling/discovery mechanism to remove the manual offer/answer step.
 
 Connection descriptions are signed and validated against the expected saved peer ID. Never accept connection text from an unknown peer. The initial implementation uses a public STUN server to help establish direct routes; some networks may not permit a direct connection. A TURN relay fallback is not configured.
 
 ## Current limitations — not production ready
 
 - No automatic peer discovery, public relay network, TURN fallback, voice/video calls, group chat, file transfer, or native Android package.
-- Manual signaling text is a bootstrap mechanism; a user must exchange offer/answer data out of band.
+- Invite links simplify adding a contact but do not connect peers by themselves. Manual signaling text is still required for a live connection; automatic cross-country discovery/signaling and a relay fallback are not implemented.
 - Chat history is held in memory only and is lost when the page reloads. Messages have a selectable 48- or 72-hour expiry while the app is running, but background deletion, persistent encrypted storage, and cross-device deletion are not implemented.
 - The identity is stored in browser IndexedDB. Secure encrypted identity export/import and sharing the same identity between web and Android are not implemented.
 - WebRTC encrypts the connection in transit, and signaling data is identity-signed, but the overall protocol has not received independent cryptographic review. Do not treat this prototype as audited or production-grade security.
