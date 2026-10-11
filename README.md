@@ -14,7 +14,7 @@ A mobile-first, native-Android-style web prototype for decentralized private pee
 - Peer ID entry with validation, duplicate/self checks, peer list, and optional camera QR scanning on supported browsers. QR scanning accepts either a peer ID or an invite link encoded in a QR code.
 - Direct WebRTC data-channel chat with automatic signed offer/answer exchange through the signaling service. Add a contact using only their peer ID; manual offer/answer pairing has been removed from the chat UI.
 - Signed connection descriptions. The app verifies that the signaling public key hashes to the claimed peer ID and checks its ECDSA signature.
-- Text chat over the WebRTC data channel. WebRTC provides encrypted transport between connected peers.
+- Text chat payloads, receipts, and call-control messages are additionally encrypted at the application layer with AES-256-GCM. Peers exchange fresh ephemeral P-256 ECDH public keys over the WebRTC data channel; each handshake is signed by the peer's persistent ECDSA P-256 identity key and checked against the peer ID. HKDF-SHA-256 derives separate directional AES-GCM keys. WebRTC transport encryption remains enabled underneath.
 - In-chat audio and video calls, incoming-call accept/decline controls, mute, hang up, and switching between audio-only and video during an active call (browser microphone/camera permission required).
 - WhatsApp-style message status: one tick for sent, two gray ticks for delivered, and two green ticks after the recipient opens the chat and sends a read receipt.
 - Telegram-inspired full-screen conversation layout on mobile, with a scrollable message area and composer anchored at the bottom.
@@ -40,7 +40,7 @@ QR remains optional: **Identity → Show QR code** and **Join → Scan QR**. Inv
 - Invite links add contacts but do not themselves connect them. Automatic signaling works only after a public signaling service is deployed and configured by both users. The service is not hosted by this repository.
 - Chat history is encrypted at rest in the same browser profile and can survive refresh on that device. It is not synced between devices; expiry cleanup runs while the app is open and on startup, not guaranteed at the exact expiry moment while the app is closed.
 - The identity is stored in browser IndexedDB. Secure encrypted identity export/import and sharing the same identity between web and Android are not implemented.
-- WebRTC encrypts the connection in transit, and signaling data is identity-signed, but the overall protocol has not received independent cryptographic review. Do not treat this prototype as audited or production-grade security.
+- The application-layer E2EE handshake and message encryption are prototype cryptography and have not received independent review, interoperability testing, or adversarial testing. Do not treat UNISON as audited or production-grade security. Both peers must run a compatible updated client; older clients cannot exchange the new encrypted data-channel messages.
 - STUN can reveal network metadata such as public IP information to the STUN provider and peers may learn network information during connection setup. This prototype does not promise anonymity.
 - Browser storage may be cleared by the browser, device, or user.
 
