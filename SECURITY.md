@@ -7,6 +7,7 @@ UNISON-P2P is an independent project. It is not Tox-compatible and must not clai
 - A peer ID is derived from the public part of a device-generated P-256 ECDSA identity key. The private identity key is kept in that browser's IndexedDB.
 - Signaling registration uses a fresh server challenge signed by the private identity key. The server verifies the signature and checks that the supplied public key derives the claimed peer ID before registering the WebSocket. This makes simple peer-ID squatting and unauthorized retrieval of queued signals harder; it does not prevent denial of service.
 - WebRTC offer/answer descriptions are signed and checked against the sender's peer ID.
+- Encrypted data-channel frames authenticate sender, recipient, and a strictly increasing per-session counter as AES-GCM additional authenticated data; the receiver rejects duplicate or out-of-order counters. This is a prototype replay check, not a replacement for a reviewed ratchet protocol.
 - The data channel uses a separate application-layer encryption prototype: fresh P-256 ECDH keys per connection, identity-signed key exchange, HKDF-SHA-256 directional keys, and AES-256-GCM payload encryption.
 - WebRTC transport encryption is also enabled by the browser.
 - An optional relay-only network mode can be configured with a TURN server. When enabled, the WebRTC peer connection uses iceTransportPolicy set to relay and requires valid TURN credentials.
