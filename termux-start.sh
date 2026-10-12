@@ -49,14 +49,95 @@ python preflight.py --tests --check-port || die "Preflight failed. The server wa
 PORT="${PORT:-10000}"
 export PORT
 
-say "Starting UNISON-P2P app + signaling on port $PORT."
-say "Local health check: http://127.0.0.1:$PORT/health"
-if command -v ngrok >/dev/null 2>&1; then
-  say "ngrok is installed. In a second Termux session, run: ngrok http $PORT"
-  say "If ngrok is not authenticated, configure its token with: ngrok config add-authtoken YOUR_TOKEN"
-else
-  say "ngrok is not installed. Local operation will work, but worldwide access needs a public HTTPS/WSS tunnel or hosted deployment."
-  say "Install ngrok from its official download page: https://ngrok.com/download/linux"
+# For global access, install the official ngrok binary if absent on a supported
+# architecture. The auth token is always supplied by the user, never generated.
+if ! command -v ngrok >/dev/null 2>&1 && command -v pkg >/dev/null 2>&1; then
+  ARCH="$(uname -m)"
+  case "$ARCH" in
+    aarch64|arm64) NGROK_ARCH="arm64" ;;
+    x86_64|amd64) NGROK_ARCH="amd64" ;;
+    *) NGROK_ARCH="" ;;
+  esac
+  if [[ -n "$NGROK_ARCH" ]]; then
+    if ! command -v curl >/dev/null 2>&1 || ! command -v tar >/dev/null 2>&1; then
+      say "Installing curl/tar needed for the official ngrok download..."
+      pkg install -y curl tar
+    fi
+    TMP_NGROK="$(mktemp -d)"
+    if curl -fL --retry 2 --connect-timeout 15 "https://bin.ngrok.com/c/bNyj1mQVY4c/ngrok-v3-stable-linux-${NGROK_ARCH}.tgz" -o "$TMP_NGROK/ngrok.tgz" &&
+       tar -xzf "$TMP_NGROK/ngrok.tgz" -C "$TMP_NGROK" &&
+       [[ -f "$TMP_NGROK/ngrok" ]]; then
+      install -m 755 "$TMP_NGROK/ngrok" "${PREFIX:-$HOME/.local}/bin/ngrok" 2>/dev/null || {
+        mkdir -p "${PREFIX:-$HOME/.local}/bin"
+        install -m 755 "$TMP_NGROK/ngrok" "${PREFIX:-$HOME/.local}/bin/ngrok"
+      }
+      export PATH="${PREFIX:-$HOME/.local}/bin:$PATH"
+      if ! ngrok version >/dev/null 2>&1; then
+        rm -f "${PREFIX:-$HOME/.local}/bin/ngrok"
+        say "The official ngrok binary is incompatible with this device. Continuing with local mode."
+      else
+        say "Installed ngrok from the official HTTPS download."
+      fi
+    else
+      say "Could not download ngrok. The local app can still run."
+    fi
+    rm -rf "$TMP_NGROK"
+  else
+    say "Automatic ngrok download is unsupported on architecture $ARCH. Local mode remains available."
+  fi
 fi
 
-exec python server.py
+# Configure ngrok only with a token supplied privately by the user.
+if command -v ngrok >/dev/null 2>&1; then
+  NGROK_TOKEN="${NGROK_AUTHTOKEN:-}"
+  if [[ -z "$NGROK_TOKEN" && -t 0 ]]; then
+    printf '\n[UNISON] Enter your ngrok authtoken to configure public access (input hidden), or press Enter to skip: '
+    IFS= read -r -s NGROK_TOKEN
+    printf '\n'
+  fi
+  if [[ -n "$NGROK_TOKEN" ]]; then
+    ngrok config add-authtoken "$NGROK_TOKEN" || say "ngrok token configuration failed; public tunnel may not start."
+  fi
+  unset NGROK_TOKEN
+fi
+
+say "Starting UNISON-P2P app + signaling on port $PORT."
+say "The server stores no chat messages; only temporary signed connection signals are queued."
+SERVER_LOG="$(mktemp)"
+python server.py >"$SERVER_LOG" 2>&1 &
+SERVER_PID=$!
+cleanup() {
+  kill "$SERVER_PID" >/dev/null 2>&1 || true
+  wait "$SERVER_PID" >/dev/null 2>&1 || true
+  rm -f "$SERVER_LOG"
+}
+trap cleanup EXIT INT TERM
+
+HEALTHY=0
+for _ in $(seq 1 20); do
+  if ! kill -0 "$SERVER_PID" >/dev/null 2>&1; then
+    cat "$SERVER_LOG" >&2
+    die "The Python server exited before becoming healthy."
+  fi
+  if python -c "import urllib.request; r=urllib.request.urlopen('http://127.0.0.1:$PORT/health', timeout=1); raise SystemExit(0 if r.status == 200 else 1)" >/dev/null 2>&1; then
+    HEALTHY=1
+    break
+  fi
+  sleep 1
+done
+[[ "$HEALTHY" == "1" ]] || { cat "$SERVER_LOG" >&2; die "Health check timed out; server was not exposed publicly."; }
+
+say "Health check passed: http://127.0.0.1:$PORT/health"
+if command -v ngrok >/dev/null 2>&1; then
+  say "Starting public HTTPS/WSS tunnel. Share the HTTPS URL ngrok prints."
+  if ngrok http "$PORT"; then
+    :
+  else
+    say "ngrok did not start. The app will remain available locally; check your token/network and restart this script."
+    wait "$SERVER_PID"
+  fi
+else
+  say "No working ngrok agent is available. App is local only at http://127.0.0.1:$PORT/."
+  say "For worldwide access, install a trusted public HTTPS/WSS tunnel or deploy the Python service."
+  wait "$SERVER_PID"
+fi
