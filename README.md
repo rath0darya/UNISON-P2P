@@ -27,7 +27,7 @@ A mobile-first, native-Android-style web prototype for decentralized private pee
 2. On Home, tap **Share invite link** and send it to your friend in any country. The link contains your peer ID, not private keys or chat messages.
 3. Your friend opens the link and taps **Add friend**. Both people must add each other's peer IDs to their saved peer lists.
 4. Deploy the included Python signaling service using the repository's `render.yaml` blueprint. It installs the packages in `requirements.txt` and starts with `python server.py`; its health endpoint is `/health`. The signaling backend does not require Node.js.
-5. Copy the deployed service's secure WebSocket URL, such as `wss://your-service.onrender.com`. In UNISON, open **Privacy → Signaling service URL**, paste the URL, and tap **Save & connect**. Both users configure the same URL once in their own browsers.
+5. **Termux-hosted setup:** run the Python app and signaling server together, expose port `10000` with ngrok, and open ngrok's HTTPS URL on both devices. The app automatically uses that same host for WSS signaling, so users only add each other's peer IDs; they do not enter the tunnel or signaling URL. If you deploy the web app and signaling server on separate hosts instead, configure the signaling URL in Privacy on both devices.
 6. Open the saved peer chat. The client exchanges signed WebRTC offers/answers through the signaling service and verifies the peer ID and signature before applying them. When both peers are online, the lower peer ID initiates to avoid both sides starting offers at once. Signals can be queued for up to 10 minutes while a peer is offline; both people should open UNISON within that window for a fresh connection.
 
 The Python signaling service relays only signed connection setup descriptions. It does not receive the WebRTC chat data channel or store chat message content. The service sees peer IDs, connection metadata, and SDP/IP-routing details, so it is not an anonymity service. Use a service you trust. If a direct WebRTC path is blocked by a network, this version has no TURN media/data relay fallback and may fail to connect.
@@ -43,6 +43,17 @@ QR remains optional: **Identity → Show QR code** and **Join → Scan QR**. Inv
 - The application-layer E2EE handshake and message encryption are prototype cryptography and have not received independent review, interoperability testing, or adversarial testing. Do not treat UNISON as audited or production-grade security. Both peers must run a compatible updated client; older clients cannot exchange the new encrypted data-channel messages.
 - STUN can reveal network metadata such as public IP information to the STUN provider and peers may learn network information during connection setup. This prototype does not promise anonymity.
 - Browser storage may be cleared by the browser, device, or user.
+
+## Run the combined app and signaling service in Termux
+
+Clone this repository on your Android phone, then run:
+
+```sh
+cd ~/UNISON-P2P
+bash termux-start.sh
+```
+
+The script installs the Python dependencies and starts the app plus signaling server on port `10000`. In a second Termux session, run `ngrok http 10000`. Open the HTTPS URL ngrok prints on both devices. Because the page and WebSocket signaling share that same public host, the app derives its WSS address automatically and people connect using peer IDs only. Keep both Termux processes and the phone online. If ngrok gives you a different URL after restarting, share the new URL with users again. A stable ngrok domain avoids that URL changing, if available on your ngrok plan.
 
 ## Run the Python signaling server locally
 
