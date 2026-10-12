@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import time
 from collections import defaultdict, deque
 
@@ -103,6 +104,37 @@ def verify_signal(signal):
         return False
 
 
+def verify_registration(peer_id, jwk, signature, challenge):
+    """Prove possession of the private identity key before registering a peer ID."""
+    if not valid_id(peer_id) or not isinstance(jwk, dict):
+        return False
+    if jwk.get("kty") != "EC" or jwk.get("crv") != "P-256":
+        return False
+    if not isinstance(signature, str) or len(signature) > 256:
+        return False
+    try:
+        digest = hashlib.sha256(canonical_public(jwk).encode("utf-8")).digest()
+        derived_id = base64.b32encode(digest).decode("ascii").rstrip("=")[:20]
+        if derived_id != peer_id:
+            return False
+        public_key = ec.EllipticCurvePublicNumbers(
+            b64url_int(jwk.get("x")),
+            b64url_int(jwk.get("y")),
+            ec.SECP256R1(),
+        ).public_key()
+        raw_sig = base64.b64decode(signature, validate=True)
+        if len(raw_sig) != 64:
+            return False
+        r = int.from_bytes(raw_sig[:32], "big")
+        ss = int.from_bytes(raw_sig[32:], "big")
+        der_sig = utils.encode_dss_signature(r, ss)
+        proof = f"UNISON-P2P-REGISTER-v1:{peer_id}:{challenge}".encode("utf-8")
+        public_key.verify(der_sig, proof, ec.ECDSA(hashes.SHA256()))
+        return True
+    except (ValueError, TypeError, KeyError, InvalidSignature):
+        return False
+
+
 def prune_mailbox(peer_id):
     now = time.time()
     queue = mailbox[peer_id]
@@ -129,6 +161,8 @@ async def websocket_handler(request):
     ws = web.WebSocketResponse(max_msg_size=MAX_PAYLOAD, heartbeat=30)
     await ws.prepare(request)
     peer_id = None
+    pending_id = None
+    pending_challenge = None
     rate_start = time.monotonic()
     rate_count = 0
     try:
@@ -158,7 +192,26 @@ async def websocket_handler(request):
                         clients[peer_id].discard(ws)
                         if not clients[peer_id]:
                             clients.pop(peer_id, None)
-                    peer_id = requested_id
+                        peer_id = None
+                    pending_id = requested_id
+                    pending_challenge = secrets.token_urlsafe(32)
+                    await send_json(ws, {
+                        "type": "challenge",
+                        "id": pending_id,
+                        "challenge": pending_challenge,
+                    })
+                    continue
+                if msg.get("type") == "register-proof":
+                    if (pending_id is None or pending_challenge is None or
+                            msg.get("id") != pending_id or
+                            not verify_registration(
+                                pending_id, msg.get("publicJwk"),
+                                msg.get("signature"), pending_challenge)):
+                        await ws.close(code=1008, message=b"identity proof failed")
+                        break
+                    peer_id = pending_id
+                    pending_id = None
+                    pending_challenge = None
                     clients[peer_id].add(ws)
                     await send_json(ws, {"type": "registered", "id": peer_id})
                     queue = prune_mailbox(peer_id)
