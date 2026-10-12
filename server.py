@@ -203,13 +203,26 @@ async def websocket_handler(request):
 async def root(request):
     if request.headers.get("Upgrade", "").lower() == "websocket":
         return await websocket_handler(request)
-    return await health(request)
+    # Serve the web app from the same public origin as signaling. This lets
+    # users connect by peer ID only; the browser derives WSS from its own URL.
+    return web.FileResponse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html"))
+
+
+async def frontend_file(request):
+    filename = request.match_info["filename"]
+    if filename not in {"manifest.json", "sw.js"}:
+        raise web.HTTPNotFound()
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
+    if not os.path.isfile(path):
+        raise web.HTTPNotFound()
+    return web.FileResponse(path)
 
 
 def create_app():
     app = web.Application(client_max_size=MAX_PAYLOAD)
     app.router.add_get("/", root)
     app.router.add_get("/health", health)
+    app.router.add_get("/{filename:manifest.json|sw.js}", frontend_file)
     return app
 
 
