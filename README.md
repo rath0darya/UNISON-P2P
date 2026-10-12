@@ -53,11 +53,11 @@ cd ~/UNISON-P2P
 bash termux-start.sh
 ```
 
-The script installs the Python dependencies and starts the app plus signaling server on port `10000`. In a second Termux session, run `ngrok http 10000`. Open the HTTPS URL ngrok prints on both devices. Because the page and WebSocket signaling share that same public host, the app derives its WSS address automatically and people connect using peer IDs only. Keep both Termux processes and the phone online. If ngrok gives you a different URL after restarting, share the new URL with users again. A stable ngrok domain avoids that URL changing, if available on your ngrok plan.
+The startup script checks the required project files and Python package versions before starting. If Python is missing, it attempts to install it through Termux's package manager; if `aiohttp` or `cryptography` is missing/out of range, it installs the declared requirements automatically, with a Termux-package fallback. It then compiles the Python files, runs the security tests, and checks that the chosen port is free. The server starts only if every preflight check passes. The script does not store chat messages on the signaling server. In a second Termux session, run `ngrok http 10000`. Open the HTTPS URL ngrok prints on both devices. Because the page and WebSocket signaling share that same public host, the app derives its WSS address automatically and people connect using peer IDs only. Keep both Termux processes and the phone online. If ngrok gives you a different URL after restarting, share the new URL with users again. A stable ngrok domain avoids that URL changing, if available on your ngrok plan.
 
 ## Run the Python signaling server locally
 
-Install the Python dependencies and start the signaling service:
+For a full dependency, syntax, and security-test preflight before startup, use `bash termux-start.sh`. For manual development, install the Python dependencies and start the signaling service:
 
 ```sh
 python -m pip install -r requirements.txt
