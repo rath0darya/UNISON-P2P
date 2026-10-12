@@ -185,19 +185,21 @@ function setupDataChannel(id,conn,dc){
     try{await ensureE2EEInit(id,conn);if(conn.crypto.remoteJwk)await deriveE2EEKeys(id,conn)}catch(e){console.warn('E2EE handshake failed:',e);if(activePeerId===id)toast('Could not establish end-to-end encryption. Reconnect and try again.')}
   };
   dc.onclose=()=>{conn.e2eeReady=false;if(conn.crypto){conn.crypto.sendKey=null;conn.crypto.receiveKey=null;conn.crypto.localPair=null}const p=peers.find(x=>x.id===id);if(p){p.status='DISCONNECTED';savePeer(p).catch(()=>{})}if(activePeerId===id)render();if(!conn.replacing&&!conn.intentionalClose)scheduleAutoReconnect(id)};
-  dc.onmessage=async e=>{
-    try{
-      const wire=JSON.parse(e.data);
-      if(wire.kind==='e2ee-init'){await acceptE2EEInit(id,conn,wire);return}
-      if(wire.kind!=='e2ee-message'||wire.version!==1||!Number.isSafeInteger(wire.counter)||wire.counter!==(conn.crypto?.receiveCounter||0)+1||typeof wire.iv!=='string'||typeof wire.ciphertext!=='string')return;
-      const state=conn.crypto;if(!state||!state.ready||!state.receiveKey)return;
-      const aad=new TextEncoder().encode('UNISON-P2P-MSG-v1:'+id+':'+identity.id+':'+wire.counter);
-      const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(wire.iv),additionalData:aad},state.receiveKey,unb64(wire.ciphertext));
-      state.receiveCounter=wire.counter;
-      const message=JSON.parse(new TextDecoder().decode(plain));
-      if(!message||typeof message.kind!=='string')return;
-      handleDataMessage(id,message);
-    }catch(err){console.warn('Rejected encrypted peer message:',err&&err.message||err)}
+  dc.onmessage=e=>{
+    conn.receiveQueue=(conn.receiveQueue||Promise.resolve()).then(async()=>{
+      try{
+        const wire=JSON.parse(e.data);
+        if(wire.kind==='e2ee-init'){await acceptE2EEInit(id,conn,wire);return}
+        if(wire.kind!=='e2ee-message'||wire.version!==1||!Number.isSafeInteger(wire.counter)||wire.counter!==(conn.crypto?.receiveCounter||0)+1||typeof wire.iv!=='string'||typeof wire.ciphertext!=='string')return;
+        const state=conn.crypto;if(!state||!state.ready||!state.receiveKey)return;
+        const aad=new TextEncoder().encode('UNISON-P2P-MSG-v1:'+id+':'+identity.id+':'+wire.counter);
+        const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(wire.iv),additionalData:aad},state.receiveKey,unb64(wire.ciphertext));
+        state.receiveCounter=wire.counter;
+        const message=JSON.parse(new TextDecoder().decode(plain));
+        if(!message||typeof message.kind!=='string')return;
+        handleDataMessage(id,message);
+      }catch(err){console.warn('Rejected encrypted peer message:',err&&err.message||err)}
+    });
   };
 }function signalingUrl(){try{const saved=localStorage.getItem('unison-signaling-url');if(saved)return saved}catch(e){}return (location.protocol==='https:'?'wss://':'ws://')+location.host}
 function sendRelay(signal){if(!signalingSocket||signalingSocket.readyState!==WebSocket.OPEN)throw new Error('Signaling service is not connected. Configure its public WSS URL in Privacy settings.');signalingSocket.send(JSON.stringify({type:'signal',signal}))}
