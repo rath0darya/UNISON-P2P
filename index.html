@@ -103,7 +103,7 @@ async function startCall(id,mode){const conn=connections.get(id);if(!conn||!conn
 async function acceptCall(id){const call=callStates.get(id);if(!call||call.state!=='incoming'||!call.offer)throw new Error('There is no incoming call to accept.');if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error('Calls require HTTPS and microphone/camera permissions.');const conn=connections.get(id);if(!conn||!conn.dc||conn.dc.readyState!=='open')throw new Error('The chat connection dropped. Reconnect before accepting.');const mode=call.mode,stream=await navigator.mediaDevices.getUserMedia({audio:true,video:mode==='video'});call.localStream=stream;for(const track of stream.getTracks()){const sender=conn.pc.getSenders().find(x=>x.track&&x.track.kind===track.kind);if(sender)await sender.replaceTrack(track);else conn.pc.addTrack(track,stream)}await conn.pc.setRemoteDescription({type:'offer',sdp:call.offer.sdp});const answer=await conn.pc.createAnswer();await conn.pc.setLocalDescription(answer);await waitIce(conn.pc);sendRelay(JSON.parse(await signSignal('answer',id,conn.pc.localDescription.sdp)));call.state='active';call.offer=null;render();renderCallPanel(id)}
 async function handleMediaOffer(signal,offer){const id=signal.id,existing=connections.get(id),active=callStates.get(id);if(active&&active.state==='active'&&existing){await existing.pc.setRemoteDescription({type:'offer',sdp:offer.sdp});const answer=await existing.pc.createAnswer();await existing.pc.setLocalDescription(answer);await waitIce(existing.pc);sendRelay(JSON.parse(await signSignal('answer',id,existing.pc.localDescription.sdp)));return}if(!existing||!existing.dc||existing.dc.readyState!=='open')return;const mode=/\r?\nm=video\s/i.test(offer.sdp)?'video':'audio';callStates.set(id,{state:'incoming',mode,offer,localStream:null,remoteStream:new MediaStream(),muted:false});if(activePeerId===id)renderCallPanel(id)}
 async function ensureE2EEInit(id,conn){
-  if(!conn.crypto)conn.crypto={localPair:null,remoteJwk:null,sendKey:null,receiveKey:null,ready:false,initPromise:null,derivePromise:null};
+  if(!conn.crypto)conn.crypto={localPair:null,remoteJwk:null,sendKey:null,receiveKey:null,ready:false,initPromise:null,derivePromise:null,sendCounter:0,receiveCounter:0,sendQueue:Promise.resolve()};
   const state=conn.crypto;
   if(!state.initPromise){
     state.initPromise=(async()=>{
@@ -152,10 +152,18 @@ async function acceptE2EEInit(id,conn,m){
 async function sendSecureData(id,payload){
   const conn=connections.get(id),state=conn&&conn.crypto;
   if(!conn||!conn.dc||conn.dc.readyState!=='open'||!state||!state.ready||!state.sendKey)throw new Error('Waiting for end-to-end encryption to finish. Try again in a moment.');
-  const iv=crypto.getRandomValues(new Uint8Array(12));
-  const plain=new TextEncoder().encode(JSON.stringify(payload));
-  const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},state.sendKey,plain);
-  conn.dc.send(JSON.stringify({kind:'e2ee-message',version:1,iv:b64(iv),ciphertext:b64(new Uint8Array(cipher))}));
+  const operation=(state.sendQueue||Promise.resolve()).then(async()=>{
+    if(!conn.dc||conn.dc.readyState!=='open'||!state.ready||!state.sendKey)throw new Error('The encrypted peer connection closed.');
+    const counter=state.sendCounter+1;
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const aad=new TextEncoder().encode('UNISON-P2P-MSG-v1:'+identity.id+':'+id+':'+counter);
+    const plain=new TextEncoder().encode(JSON.stringify(payload));
+    const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv,additionalData:aad},state.sendKey,plain);
+    conn.dc.send(JSON.stringify({kind:'e2ee-message',version:1,counter,iv:b64(iv),ciphertext:b64(new Uint8Array(cipher))}));
+    state.sendCounter=counter;
+  });
+  state.sendQueue=operation.catch(()=>{});
+  return operation;
 }
 function handleDataMessage(id,m){
   if(m.kind==='call-control'&&typeof m.action==='string'){
@@ -181,9 +189,11 @@ function setupDataChannel(id,conn,dc){
     try{
       const wire=JSON.parse(e.data);
       if(wire.kind==='e2ee-init'){await acceptE2EEInit(id,conn,wire);return}
-      if(wire.kind!=='e2ee-message'||wire.version!==1||typeof wire.iv!=='string'||typeof wire.ciphertext!=='string')return;
+      if(wire.kind!=='e2ee-message'||wire.version!==1||!Number.isSafeInteger(wire.counter)||wire.counter!==(conn.crypto?.receiveCounter||0)+1||typeof wire.iv!=='string'||typeof wire.ciphertext!=='string')return;
       const state=conn.crypto;if(!state||!state.ready||!state.receiveKey)return;
-      const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(wire.iv)},state.receiveKey,unb64(wire.ciphertext));
+      const aad=new TextEncoder().encode('UNISON-P2P-MSG-v1:'+id+':'+identity.id+':'+wire.counter);
+      const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(wire.iv),additionalData:aad},state.receiveKey,unb64(wire.ciphertext));
+      state.receiveCounter=wire.counter;
       const message=JSON.parse(new TextDecoder().decode(plain));
       if(!message||typeof message.kind!=='string')return;
       handleDataMessage(id,message);
