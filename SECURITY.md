@@ -42,3 +42,9 @@ UNISON-P2P is an independent project. It is not Tox-compatible and must not clai
 - Tox FAQ: https://tox.chat/faq.html
 - Tox privacy FAQ: https://wiki.tox.chat/users/faq
 - Noise Protocol Framework: https://noiseprotocol.org/
+
+## Dependency bootstrap behavior
+
+The Termux startup script checks required files and supported versions of aiohttp and cryptography before starting the server. It attempts to install missing Python or package dependencies from the configured Termux/Python package sources, then compiles the Python files and runs unit tests. Startup stops if installation, tests, or the port check fails. Package downloads should be reviewed through trusted package repositories; the script does not bypass TLS or disable package verification.
+
+The ngrok agent is a separate optional public-tunnel dependency. The script detects whether it is installed and prints the official installation/configuration steps, but does not download an arbitrary tunnel binary or invent an authentication token. A user must authenticate ngrok with their own token. TURN is also a separate service and requires valid credentials; it cannot be provisioned securely by the client without a provider.
