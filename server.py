@@ -209,7 +209,7 @@ async def root(request):
 
 
 async def frontend_file(request):
-    filename = request.match_info["filename"]
+    filename = request.path.lstrip("/")
     if filename not in {"manifest.json", "sw.js"}:
         raise web.HTTPNotFound()
     path = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
@@ -222,7 +222,8 @@ def create_app():
     app = web.Application(client_max_size=MAX_PAYLOAD)
     app.router.add_get("/", root)
     app.router.add_get("/health", health)
-    app.router.add_get("/{filename:manifest.json|sw.js}", frontend_file)
+    app.router.add_get("/manifest.json", frontend_file)
+    app.router.add_get("/sw.js", frontend_file)
     return app
 
 
