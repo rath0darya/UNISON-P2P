@@ -26,17 +26,17 @@ A mobile-first, native-Android-style web prototype for decentralized private pee
 1. Serve the app from HTTPS and create an identity.
 2. On Home, tap **Share invite link** and send it to your friend in any country. The link contains your peer ID, not private keys or chat messages.
 3. Your friend opens the link and taps **Add friend**. Both people must add each other's peer IDs to their saved peer lists.
-4. Deploy the included signaling service using the repository's `render.yaml` blueprint (or deploy `server.js` as a Node.js web service). The service needs Node.js 20+ and runs with `npm install` followed by `npm start`. Its health endpoint is `/health`.
+4. Deploy the included Python signaling service using the repository's `render.yaml` blueprint. It installs the packages in `requirements.txt` and starts with `python server.py`; its health endpoint is `/health`. The signaling backend does not require Node.js.
 5. Copy the deployed service's secure WebSocket URL, such as `wss://your-service.onrender.com`. In UNISON, open **Privacy → Signaling service URL**, paste the URL, and tap **Save & connect**. Both users configure the same URL once in their own browsers.
 6. Open the saved peer chat. The client exchanges signed WebRTC offers/answers through the signaling service and verifies the peer ID and signature before applying them. When both peers are online, the lower peer ID initiates to avoid both sides starting offers at once. Signals can be queued for up to 10 minutes while a peer is offline; both people should open UNISON within that window for a fresh connection.
 
-The signaling service relays only signed connection setup descriptions. It does not receive the WebRTC chat data channel or store chat message content. The service sees peer IDs, connection metadata, and SDP/IP-routing details, so it is not an anonymity service. Use a service you trust. If a direct WebRTC path is blocked by a network, this version has no TURN media/data relay fallback and may fail to connect.
+The Python signaling service relays only signed connection setup descriptions. It does not receive the WebRTC chat data channel or store chat message content. The service sees peer IDs, connection metadata, and SDP/IP-routing details, so it is not an anonymity service. Use a service you trust. If a direct WebRTC path is blocked by a network, this version has no TURN media/data relay fallback and may fail to connect.
 
 QR remains optional: **Identity → Show QR code** and **Join → Scan QR**. Invite links are easier for friends in different countries.
 
 ## Current limitations — not production ready
 
-- No public relay network for chat traffic, TURN fallback, voice/video calls, group chat, file transfer, or native Android package. The signaling service and static frontend are defined in `render.yaml` but still need to be deployed by the repository owner.
+- No public relay network for chat traffic, TURN fallback, voice/video calls, group chat, file transfer, or native Android package. The Python signaling service and static frontend are defined in `render.yaml` but still need to be deployed by the repository owner.
 - Invite links add contacts but do not themselves connect them. Automatic signaling works only after a public signaling service is deployed and configured by both users. The service is not hosted by this repository.
 - Chat history is encrypted at rest in the same browser profile and can survive refresh on that device. It is not synced between devices; expiry cleanup runs while the app is open and on startup, not guaranteed at the exact expiry moment while the app is closed.
 - The identity is stored in browser IndexedDB. Secure encrypted identity export/import and sharing the same identity between web and Android are not implemented.
@@ -44,7 +44,18 @@ QR remains optional: **Identity → Show QR code** and **Join → Scan QR**. Inv
 - STUN can reveal network metadata such as public IP information to the STUN provider and peers may learn network information during connection setup. This prototype does not promise anonymity.
 - Browser storage may be cleared by the browser, device, or user.
 
-## Run locally
+## Run the Python signaling server locally
+
+Install the Python dependencies and start the signaling service:
+
+```sh
+python -m pip install -r requirements.txt
+python server.py
+```
+
+Check `http://127.0.0.1:10000/health`; the JSON response should include `"runtime": "python"`. The root path also accepts WebSocket upgrades for signaling.
+
+## Run the web app locally
 
 Serve the repository over HTTPS or localhost (required for secure browser cryptography, camera permissions, and service workers):
 
