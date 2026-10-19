@@ -98,7 +98,39 @@ private fun UnisonApp() {
     var messageDraft by remember { mutableStateOf("") }
     var connectionStatus by remember { mutableStateOf("Starting local peer discovery…") }
     var transport by remember { mutableStateOf<LanP2PTransport?>(null) }
-    val messages = remember { mutableStateListOf<ChatMessage>() }
+    val messages = remember {
+        mutableStateListOf<ChatMessage>().apply {
+            runCatching {
+                val saved = org.json.JSONArray(localPrefs.getString("chat_messages", "[]") ?: "[]")
+                for (i in 0 until saved.length()) {
+                    val item = saved.getJSONObject(i)
+                    add(ChatMessage(
+                        text = item.optString("text"),
+                        time = item.optString("time"),
+                        outgoing = item.optBoolean("outgoing"),
+                        status = item.optInt("status"),
+                        sentAt = item.optLong("sentAt"),
+                        deliveredAt = if (item.isNull("deliveredAt")) null else item.optLong("deliveredAt"),
+                        readAt = if (item.isNull("readAt")) null else item.optLong("readAt")
+                    ))
+                }
+            }
+        }
+    }
+    val persistMessages: () -> Unit = {
+        val saved = org.json.JSONArray()
+        messages.forEach { message ->
+            saved.put(org.json.JSONObject()
+                .put("text", message.text)
+                .put("time", message.time)
+                .put("outgoing", message.outgoing)
+                .put("status", message.status)
+                .put("sentAt", message.sentAt)
+                .put("deliveredAt", message.deliveredAt ?: org.json.JSONObject.NULL)
+                .put("readAt", message.readAt ?: org.json.JSONObject.NULL))
+        }
+        localPrefs.edit().putString("chat_messages", saved.toString()).apply()
+    }
 
     DisposableEffect(pairingCode, yourDisplayName) {
         val engine = LanP2PTransport(context, pairingCode, yourDisplayName, object : LanP2PTransport.Listener {
@@ -117,6 +149,7 @@ private fun UnisonApp() {
                 peerDisplayName = fromName
                 activeChat = fromName
                 messages.add(ChatMessage(text, SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp)), false, 0, timestamp))
+                persistMessages()
             }
         })
         transport = engine
@@ -234,7 +267,7 @@ private fun UnisonApp() {
             },
             floatingActionButton = {
                 if (activeChat == null && tab == Tab.CHATS) FloatingActionButton(
-                    onClick = { showIdentity = true },
+                    onClick = { showPairDialog = true },
                     containerColor = UnisonBlue,
                     contentColor = Color.White
                 ) { Icon(Icons.Default.Add, "Add peer") }
@@ -253,6 +286,7 @@ private fun UnisonApp() {
                             if (transport?.sendMessage(outgoingText) == true) {
                                 val sentAt = System.currentTimeMillis()
                                 messages.add(ChatMessage(outgoingText, nowTime(), true, 1, sentAt))
+                                persistMessages()
                                 messageDraft = ""
                             } else {
                                 Toast.makeText(context, "Not connected. Pair with the other phone while both devices are on the same Wi-Fi network.", Toast.LENGTH_LONG).show()
