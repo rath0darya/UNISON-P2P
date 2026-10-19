@@ -36,7 +36,7 @@ QR remains optional: **Identity → Show QR code** and **Join → Scan QR**. Inv
 
 ## Current limitations — not production ready
 
-- No public relay network for chat traffic, TURN fallback, voice/video calls, group chat, file transfer, or native Android package. The Python signaling service and static frontend are defined in `render.yaml` but still need to be deployed by the repository owner.
+- The native Android module is an initial UI/security foundation, not yet a full messenger: native P2P transport, reliable receipts, calls, group chat, file transfer, and recovery export/import still need implementation and validation. The web signaling service and static frontend are defined in `render.yaml` but still need to be deployed by the repository owner.
 - Invite links add contacts but do not themselves connect them. Automatic signaling works only after a public signaling service is deployed and configured by both users. The service is not hosted by this repository.
 - Chat history is encrypted at rest in the same browser profile and can survive refresh on that device. It is not synced between devices; expiry cleanup runs while the app is open and on startup, not guaranteed at the exact expiry moment while the app is closed.
 - The identity is stored in browser IndexedDB. Secure encrypted identity export/import and sharing the same identity between web and Android are not implemented.
