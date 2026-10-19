@@ -85,7 +85,7 @@ private fun UnisonApp() {
     var peerCodeInput by remember { mutableStateOf("") }
     var pairMessage by remember { mutableStateOf<String?>(null) }
     var yourDisplayName by remember { mutableStateOf(localPrefs.getString("your_display_name", "Me") ?: "Me") }
-    var peerDisplayName by remember { mutableStateOf(localPrefs.getString("peer_display_name", "Arjun") ?: "Arjun") }
+    var peerDisplayName by remember { mutableStateOf(localPrefs.getString("peer_display_name", "") ?: "") }
     var presence by remember { mutableStateOf(localPrefs.getString("presence", "Online") ?: "Online") }
     var showInfo by remember { mutableStateOf<ChatMessage?>(null) }
     var identity by remember { mutableStateOf("Generating identity…") }
@@ -97,6 +97,18 @@ private fun UnisonApp() {
     var messageDraft by remember { mutableStateOf("") }
     val messages = remember { mutableStateListOf<ChatMessage>() }
     var notificationAllowed by remember { mutableStateOf(Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                val allowed = Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                notificationAllowed = allowed
+                showPermissionGate = !allowed
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     var showPermissionGate by remember { mutableStateOf(false) }
     val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         notificationAllowed = granted
@@ -442,14 +454,23 @@ private fun ChatScreen(
             if (showAttachments) AlertDialog(
                 onDismissRequest = { showAttachments = false }, title = { Text("Attach to message") },
                 text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AttachmentTile("Gallery", "Photos and videos", Icons.Default.Contacts) {
+                    AttachmentTile("Gallery", "Photos and images", Icons.Default.Contacts) {
                         showAttachments = false
                         val pick = Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE)
                         runCatching { context.startActivity(Intent.createChooser(pick, "Choose photo")) }
                     }
+                    AttachmentTile("Videos", "Choose a video", Icons.Default.Videocam) {
+                        showAttachments = false
+                        val pick = Intent(Intent.ACTION_GET_CONTENT).setType("video/*").addCategory(Intent.CATEGORY_OPENABLE)
+                        runCatching { context.startActivity(Intent.createChooser(pick, "Choose video")) }
+                    }
                     AttachmentTile("Documents", "PDFs and other files", Icons.Default.Info) {
                         showAttachments = false
                         runCatching { context.startActivity(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE)) }
+                    }
+                    AttachmentTile("Audio", "Choose an audio file", Icons.Default.Call) {
+                        showAttachments = false
+                        runCatching { context.startActivity(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("audio/*").addCategory(Intent.CATEGORY_OPENABLE)) }
                     }
                     AttachmentTile("Camera", "Take a photo", Icons.Default.Videocam) {
                         showAttachments = false
