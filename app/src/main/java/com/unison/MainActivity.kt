@@ -391,6 +391,7 @@ private fun ChatScreen(
     onSend: () -> Unit,
     onMessageInfo: (ChatMessage) -> Unit
 ) {
+    val context = LocalContext.current
     Column(modifier.fillMaxSize().background(Color(0xFFEAF0F5)).imePadding()) {
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 10.dp),
