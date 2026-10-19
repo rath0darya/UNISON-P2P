@@ -72,8 +72,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-    // Open-source libp2p protocol engine (TCP, peer identities, Noise, and pubsub primitives).
-    implementation("io.libp2p:jvm-libp2p:1.3.8-RELEASE")
+    // WebRTC data channels carry chat peer-to-peer; OkHttp WebSocket is signaling only.
+    implementation("org.webrtc:google-webrtc:1.0.32006")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
