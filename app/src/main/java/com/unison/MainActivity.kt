@@ -295,7 +295,7 @@ private fun UnisonApp() {
                     },
                     onMessageInfo = { showInfo = it }
                 )
-                tab == Tab.CHATS -> ChatList(Modifier.padding(padding), peerDisplayName) { activeChat = it }
+                tab == Tab.CHATS -> ChatList(Modifier.padding(padding), peerDisplayName, messages, connectionStatus) { activeChat = it }
                 tab == Tab.CONTACTS -> EmptyPanel(Modifier.padding(padding), "Contacts", "Pair with a person using their uppercase pairing code.")
                 tab == Tab.CALLS -> EmptyPanel(Modifier.padding(padding), "Calls", "Voice and video call history will appear here when the direct call engine is connected.")
                 else -> SettingsPanel(
@@ -453,9 +453,10 @@ private fun UnisonApp() {
 
 
 @Composable
-private fun ChatList(modifier: Modifier, peerDisplayName: String, onOpen: (String) -> Unit) {
+private fun ChatList(modifier: Modifier, peerDisplayName: String, messages: List<ChatMessage>, connectionStatus: String, onOpen: (String) -> Unit) {
     var search by remember { mutableStateOf("") }
-    val chats = emptyList<ChatItem>()
+    val latestMessage = messages.lastOrNull()?.text ?: "Tap to open conversation"
+    val chats = if (peerDisplayName.isNotBlank()) listOf(ChatItem(peerDisplayName, latestMessage, "", 0, UnisonBlue)) else emptyList()
     Column(modifier.fillMaxSize().background(Color(0xFFF4F7FB))) {
         Surface(color = Color.White, shadowElevation = 1.dp) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -525,7 +526,7 @@ private fun ChatList(modifier: Modifier, peerDisplayName: String, onOpen: (Strin
                 Text("Your chat list is waiting", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1C2B40))
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "No sample conversations here. Pairing and live message delivery must be connected before real chats can appear.",
+                    "No sample conversations are added. Connect to a peer on the same reachable Wi-Fi network to start a real chat.",
                     color = Color(0xFF718096), fontSize = 13.sp, lineHeight = 19.sp,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
@@ -533,7 +534,7 @@ private fun ChatList(modifier: Modifier, peerDisplayName: String, onOpen: (Strin
                 Surface(color = Color.White, shape = RoundedCornerShape(14.dp), shadowElevation = 1.dp) {
                     Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(Modifier.size(8.dp).background(Color(0xFFE3A33B), CircleShape))
-                        Text("Connection engine not ready", color = Color(0xFF6D7888), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text(connectionStatus, color = Color(0xFF6D7888), fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
