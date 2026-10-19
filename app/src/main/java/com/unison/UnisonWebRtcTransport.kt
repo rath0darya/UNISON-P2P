@@ -29,7 +29,6 @@ internal class UnisonWebRtcTransport(
     context: Context,
     private val ownCode: String,
     private val displayName: String,
-    signalingUrl: String,
     private val callback: Callback
 ) {
     internal interface Callback {
@@ -40,7 +39,7 @@ internal class UnisonWebRtcTransport(
 
     private val app = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
-    private val endpoint = signalingUrl.trim()
+    private val endpoint = DEFAULT_SIGNALING_URL
     private val started = AtomicBoolean(false)
     private val http = OkHttpClient.Builder()
         .pingInterval(25, TimeUnit.SECONDS)
@@ -63,10 +62,6 @@ internal class UnisonWebRtcTransport(
 
     fun start() {
         if (!started.compareAndSet(false, true)) return
-        if (!endpoint.startsWith("wss://") && !endpoint.startsWith("ws://")) {
-            postStatus("Set your WebSocket signaling server URL in Settings to connect")
-            return
-        }
         val request = Request.Builder().url(endpoint).build()
         socket = http.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
@@ -103,7 +98,7 @@ internal class UnisonWebRtcTransport(
             return
         }
         if (socket == null) {
-            postStatus("Signaling server is not connected. Configure its URL in Settings.")
+            postStatus("Connecting to Unison network. Please wait and try again.")
             return
         }
         targetCode = target
@@ -352,6 +347,7 @@ internal class UnisonWebRtcTransport(
     }
 
     companion object {
+        private const val DEFAULT_SIGNALING_URL = "wss://unison-p2p.onrender.com/"
         private const val MAX_MESSAGE_CHARS = 8000
         private const val ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
     }
