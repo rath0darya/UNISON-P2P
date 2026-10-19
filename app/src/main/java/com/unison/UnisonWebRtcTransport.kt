@@ -150,12 +150,22 @@ internal class UnisonWebRtcTransport(
             when (packet.optString("type")) {
                 "registered" -> postStatus("Connected to signaling server; ready to pair")
                 "error" -> postStatus(packet.optString("message", "Signaling server error"))
-                "peer-online" -> postStatus("Peer is online; negotiating WebRTC connection…")
+                "peer-online" -> {
+                    val from = normalize(packet.optString("fromCode"))
+                    if (validCode(from)) {
+                        targetCode = from
+                        targetName = packet.optString("fromName").ifBlank { from }
+                        callback.onPeerName(targetName)
+                        postStatus("Peer is online; negotiating WebRTC connection…")
+                        createOffer()
+                    }
+                }
                 "incoming_pair" -> {
                     val from = normalize(packet.optString("fromCode"))
                     if (!validCode(from) || from == normalize(ownCode)) return
                     targetCode = from
                     targetName = packet.optString("fromName").ifBlank { from }
+                    callback.onPeerName(targetName)
                     postStatus("Incoming pairing request from $targetName")
                     ensurePeerConnection(createDataChannel = false)
                 }
