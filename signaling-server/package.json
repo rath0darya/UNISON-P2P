@@ -1,0 +1,16 @@
+{
+  "name": "unison-signaling-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal WebSocket signaling service for Unison WebRTC peer-to-peer chat",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
