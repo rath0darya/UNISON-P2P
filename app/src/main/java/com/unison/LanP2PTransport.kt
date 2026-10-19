@@ -40,6 +40,7 @@ class LanP2PTransport(
     private val nsd = appContext.getSystemService(Context.NSD_SERVICE) as NsdManager
     private val main = Handler(Looper.getMainLooper())
     private val running = AtomicBoolean(false)
+    private val connecting = AtomicBoolean(false)
     private val executor: ExecutorService = Executors.newCachedThreadPool()
     private var server: ServerSocket? = null
     private var registrationListener: NsdManager.RegistrationListener? = null
@@ -194,7 +195,7 @@ class LanP2PTransport(
     }
 
     private fun connectSocket(address: InetAddress, port: Int, wanted: String) {
-        if (!running.get() || expectedPeerCode != wanted) return
+        if (!running.get() || expectedPeerCode != wanted || !connecting.compareAndSet(false, true)) return
         try {
             val socket = Socket()
             socket.connect(InetSocketAddress(address, port), CONNECT_TIMEOUT_MS)
@@ -202,6 +203,8 @@ class LanP2PTransport(
             establish(socket, wanted)
         } catch (e: Exception) {
             postStatus("Could not connect. Keep both phones on the same Wi-Fi and try again.")
+        } finally {
+            connecting.set(false)
         }
     }
 
@@ -219,7 +222,7 @@ class LanP2PTransport(
             val hello = reader.readLine()?.let { JSONObject(it) } ?: throw IllegalStateException("No peer handshake")
             val remoteCode = normalize(hello.optString("code"))
             if (hello.optString("type") != "hello" || remoteCode.length != 28 ||
-                remoteCode.any { it !in ALPHABET } || (expected != null && remoteCode != expected)) {
+                remoteCode.any { it !in ALPHABET } || expected == null || remoteCode != expected) {
                 throw SecurityException("Peer code did not match")
             }
             if (remoteCode == normalize(myCode)) throw SecurityException("Self connection rejected")
