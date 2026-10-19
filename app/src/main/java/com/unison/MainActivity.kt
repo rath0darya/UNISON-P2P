@@ -98,6 +98,7 @@ private fun UnisonApp() {
     val messages = remember { mutableStateListOf<ChatMessage>() }
     var notificationAllowed by remember { mutableStateOf((Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) && androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) }
     var showPermissionGate by remember { mutableStateOf(false) }
+    var showPermissionIntroduction by remember { mutableStateOf(false) }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -123,17 +124,19 @@ private fun UnisonApp() {
     }
     LaunchedEffect(notificationAllowed) {
         if (notificationAllowed && !localPrefs.getBoolean("optional_permissions_prompted", false)) {
-            val optionalPermissions = buildList {
-                add(android.Manifest.permission.CAMERA)
-                add(android.Manifest.permission.RECORD_AUDIO)
-                if (Build.VERSION.SDK_INT >= 33) {
-                    add("android.permission.READ_MEDIA_IMAGES")
-                    add("android.permission.READ_MEDIA_VIDEO")
-                    add("android.permission.READ_MEDIA_AUDIO")
-                    if (Build.VERSION.SDK_INT >= 34) add("android.permission.READ_MEDIA_VISUAL_USER_SELECTED")
-                } else add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
-            }
-            optionalPermissionLauncher.launch(optionalPermissions.toTypedArray())
+            showPermissionIntroduction = true
+        }
+    }
+    val optionalPermissions = remember {
+        buildList {
+            add(android.Manifest.permission.CAMERA)
+            add(android.Manifest.permission.RECORD_AUDIO)
+            if (Build.VERSION.SDK_INT >= 33) {
+                add("android.permission.READ_MEDIA_IMAGES")
+                add("android.permission.READ_MEDIA_VIDEO")
+                add("android.permission.READ_MEDIA_AUDIO")
+                if (Build.VERSION.SDK_INT >= 34) add("android.permission.READ_MEDIA_VISUAL_USER_SELECTED")
+            } else add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }
     LaunchedEffect(Unit) { identity = runCatching { IdentityVault.publicIdentityFingerprint() }.getOrElse { "Identity unavailable" } }
@@ -261,6 +264,43 @@ private fun UnisonApp() {
                 )
             }
         }
+
+        if (showPermissionIntroduction && notificationAllowed) AlertDialog(
+            onDismissRequest = {
+                showPermissionIntroduction = false
+                localPrefs.edit().putBoolean("optional_permissions_prompted", true).apply()
+            },
+            title = { Text("Set up your permissions") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Choose which features Unison can use on this phone.")
+                    listOf(
+                        "Microphone — voice calls and voice messages",
+                        "Camera — video calls and taking photos",
+                        "Photos and videos — choose media to share",
+                        "Audio and files — select documents and recordings"
+                    ).forEach { line ->
+                        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Icon(Icons.Default.Info, null, tint = UnisonBlue, modifier = Modifier.size(18.dp))
+                            Text(line, fontSize = 13.sp)
+                        }
+                    }
+                    Text("You can deny optional permissions and enable them later in Android Settings. File pickers may work without broad storage access.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showPermissionIntroduction = false
+                    optionalPermissionLauncher.launch(optionalPermissions.toTypedArray())
+                }) { Text("Review permissions") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showPermissionIntroduction = false
+                    localPrefs.edit().putBoolean("optional_permissions_prompted", true).apply()
+                }) { Text("Not now") }
+            }
+        )
 
         if (!notificationAllowed || showPermissionGate) AlertDialog(
             onDismissRequest = { },
