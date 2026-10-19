@@ -53,6 +53,11 @@ android {
     buildFeatures { compose = true }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        resources.excludes += "META-INF/io.netty.versions.properties"
+        resources.excludes += "META-INF/INDEX.LIST"
+        resources.excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        resources.excludes += "META-INF/native-image/io.netty/**"
+        resources.excludes += "META-INF/license/**"
     }
 }
 
@@ -67,6 +72,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    // Open-source libp2p protocol engine (TCP, peer identities, Noise, and pubsub primitives).
+    implementation("io.libp2p:jvm-libp2p:1.3.8-RELEASE")
     testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
