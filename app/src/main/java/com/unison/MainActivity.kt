@@ -96,7 +96,7 @@ private fun UnisonApp() {
     }
     var messageDraft by remember { mutableStateOf("") }
     val messages = remember { mutableStateListOf<ChatMessage>() }
-    var notificationAllowed by remember { mutableStateOf((Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) && androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled() }
+    var notificationAllowed by remember { mutableStateOf((Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) && androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) }
     var showPermissionGate by remember { mutableStateOf(false) }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
