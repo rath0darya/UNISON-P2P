@@ -1,0 +1,85 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - native-android-foundation
+    paths:
+      - "app/**"
+      - "*.gradle.kts"
+      - "gradle.properties"
+      - ".github/workflows/android-apk.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Check stable signing configuration
+        env:
+          UNISON_KEYSTORE_BASE64: ${{ secrets.UNISON_KEYSTORE_BASE64 }}
+          UNISON_KEYSTORE_PASSWORD: ${{ secrets.UNISON_KEYSTORE_PASSWORD }}
+          UNISON_KEY_ALIAS: ${{ secrets.UNISON_KEY_ALIAS }}
+          UNISON_KEY_PASSWORD: ${{ secrets.UNISON_KEY_PASSWORD }}
+        run: |
+          missing=0
+          for name in UNISON_KEYSTORE_BASE64 UNISON_KEYSTORE_PASSWORD UNISON_KEY_ALIAS UNISON_KEY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing GitHub Actions secret: $name. Configure all UNISON signing secrets to publish a stable-upgrade APK."
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ]
+
+      - name: Restore signing keystore
+        env:
+          UNISON_KEYSTORE_BASE64: ${{ secrets.UNISON_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/unison-signing"
+          echo "$UNISON_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/unison-signing/unison-release.jks"
+          echo "UNISON_KEYSTORE_PATH=$RUNNER_TEMP/unison-signing/unison-release.jks" >> "$GITHUB_ENV"
+          echo "UNISON_KEYSTORE_PASSWORD=${{ secrets.UNISON_KEYSTORE_PASSWORD }}" >> "$GITHUB_ENV"
+          echo "UNISON_KEY_ALIAS=${{ secrets.UNISON_KEY_ALIAS }}" >> "$GITHUB_ENV"
+          echo "UNISON_KEY_PASSWORD=${{ secrets.UNISON_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        run: gradle --no-daemon :app:assembleRelease
+
+      - name: Place APK in repository Download folder
+        run: |
+          mkdir -p Download
+          cp app/build/outputs/apk/release/app-release.apk Download/UNISON.apk
+          sha256sum Download/UNISON.apk | tee Download/UNISON.apk.sha256
+
+      - name: Commit APK to repository Download folder
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Download/UNISON.apk Download/UNISON.apk.sha256
+          if git diff --cached --quiet; then
+            echo "APK is unchanged; no commit needed."
+          else
+            git commit -m "Build UNISON Android APK"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
