@@ -96,7 +96,36 @@ private fun UnisonApp() {
         })
     }
     var messageDraft by remember { mutableStateOf("") }
+    var connectionStatus by remember { mutableStateOf("Starting local peer discovery…") }
+    var transport by remember { mutableStateOf<LanP2PTransport?>(null) }
     val messages = remember { mutableStateListOf<ChatMessage>() }
+
+    DisposableEffect(pairingCode, yourDisplayName) {
+        val engine = LanP2PTransport(context, pairingCode, yourDisplayName, object : LanP2PTransport.Listener {
+            override fun onStatus(status: String) {
+                connectionStatus = status
+                if (status.startsWith("Connected directly to ")) {
+                    val remoteName = status.removePrefix("Connected directly to ").trim()
+                    if (remoteName.isNotBlank()) {
+                        peerDisplayName = remoteName
+                        localPrefs.edit().putString("peer_display_name", remoteName).apply()
+                        activeChat = remoteName
+                    }
+                }
+            }
+            override fun onMessage(text: String, fromName: String, timestamp: Long) {
+                peerDisplayName = fromName
+                activeChat = fromName
+                messages.add(ChatMessage(text, SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(timestamp)), false, 0, timestamp))
+            }
+        })
+        transport = engine
+        engine.start()
+        onDispose {
+            engine.stop()
+            if (transport === engine) transport = null
+        }
+    }
     var notificationAllowed by remember { mutableStateOf((Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) && androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()) }
     var showPermissionGate by remember { mutableStateOf(false) }
     var showPermissionIntroduction by remember { mutableStateOf(false) }
@@ -163,44 +192,33 @@ private fun UnisonApp() {
         Scaffold(
             containerColor = AppBg,
             topBar = {
-                if (activeChat == null) {
+                if (activeChat != null) {
                     TopAppBar(
                         title = {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                Box(Modifier.size(38.dp).background(UnisonBlue, RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
-                                    Text("U", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 23.sp)
-                                }
-                                Column {
-                                    Text("Unison", fontWeight = FontWeight.Bold)
-                                    Text("Peer-to-peer messenger", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                        },
-                        actions = {
-                            IconButton(onClick = { showIdentity = true }) { Icon(Icons.Default.Lock, "Identity and security") }
-                            IconButton(onClick = { tab = Tab.SETTINGS }) { Icon(Icons.Default.MoreVert, "Settings") }
-                        },
-                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-                    )
-                } else {
-                    TopAppBar(
-                        title = {
-                            Column(Modifier.clickable { showPairDialog = true }) {
-                                Text(activeChat ?: "", fontWeight = FontWeight.SemiBold)
-                                Text(if (presence == "Offline") "You are offline" else "Direct status not connected", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Column {
+                                Text(activeChat ?: "Chat", fontWeight = FontWeight.SemiBold)
+                                Text(connectionStatus, fontSize = 11.sp, color = if (connectionStatus.startsWith("Connected")) ReadGreen else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         },
                         navigationIcon = { IconButton(onClick = { activeChat = null }) { Icon(Icons.Default.ArrowBack, "Back") } },
                         actions = {
                             IconButton(onClick = {
-                                if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) Toast.makeText(context, "Microphone permission is ready. The direct voice-call engine is not connected yet.", Toast.LENGTH_LONG).show()
+                                if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) Toast.makeText(context, "Voice calls need a separate real-time audio session; this build supports direct text messaging on the same local network.", Toast.LENGTH_LONG).show()
                                 else (context as? ComponentActivity)?.requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 442)
                             }) { Icon(Icons.Default.Phone, "Voice call") }
                             IconButton(onClick = {
                                 val missing = arrayOf(android.Manifest.permission.CAMERA, android.Manifest.permission.RECORD_AUDIO).filter { context.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
-                                if (missing.isEmpty()) Toast.makeText(context, "Camera and microphone permissions are ready. The direct video-call engine is not connected yet.", Toast.LENGTH_LONG).show()
-                                else (context as? ComponentActivity)?.requestPermissions(missing.toTypedArray(), 443)
+                                if (missing.isNotEmpty()) (context as? ComponentActivity)?.requestPermissions(missing.toTypedArray(), 443)
+                                else Toast.makeText(context, "Video calls need a separate real-time media engine; direct text messaging is available on the same local network.", Toast.LENGTH_LONG).show()
                             }) { Icon(Icons.Default.Videocam, "Video call") }
+                        },
+                        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                    )
+                } else if (tab != Tab.CHATS) {
+                    TopAppBar(
+                        title = { Text(when (tab) { Tab.CONTACTS -> "Contacts"; Tab.CALLS -> "Calls"; Tab.SETTINGS -> "Settings"; else -> "Unison" }, fontWeight = FontWeight.Bold) },
+                        actions = {
+                            IconButton(onClick = { showIdentity = true }) { Icon(Icons.Default.Lock, "Identity and security") }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
                     )
@@ -230,8 +248,15 @@ private fun UnisonApp() {
                     draft = messageDraft,
                     onDraftChange = { messageDraft = it },
                     onSend = {
-                        if (messageDraft.isNotBlank()) {
-                            Toast.makeText(context, "Message not sent: live peer-to-peer transport is not implemented yet.", Toast.LENGTH_LONG).show()
+                        val outgoingText = messageDraft.trim()
+                        if (outgoingText.isNotEmpty()) {
+                            if (transport?.sendMessage(outgoingText) == true) {
+                                val sentAt = System.currentTimeMillis()
+                                messages.add(ChatMessage(outgoingText, nowTime(), true, 1, sentAt))
+                                messageDraft = ""
+                            } else {
+                                Toast.makeText(context, "Not connected. Pair with the other phone while both devices are on the same Wi-Fi network.", Toast.LENGTH_LONG).show()
+                            }
                         }
                     },
                     onMessageInfo = { showInfo = it }
@@ -351,18 +376,25 @@ private fun UnisonApp() {
                         modifier = Modifier.fillMaxWidth()
                     )
                     pairMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
-                    Text("This build can validate the code format, but live peer-to-peer transport is not connected yet.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(connectionStatus + ". Direct connection works when both phones can discover each other on the same Wi-Fi/LAN; this does not provide Internet-wide NAT traversal.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
             confirmButton = {
                 TextButton(onClick = {
                     val compact = peerCodeInput.replace("-", "")
-                    pairMessage = if (compact.length != 28 || compact.any { it !in "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" }) {
-                        "Invalid format. Use 28 uppercase letters/digits with hyphens between groups."
+                    if (compact.length != 28 || compact.any { it !in "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" }) {
+                        pairMessage = "Invalid format. Use 28 uppercase letters/digits with hyphens between groups."
+                    } else if (compact == pairingCode.replace("-", "")) {
+                        pairMessage = "That is your own pairing code."
                     } else {
-                        "Code format is valid, but a live connection cannot be established in this build yet."
+                        transport?.connectTo(peerCodeInput)
+                        peerDisplayName = peerDisplayName.ifBlank { peerCodeInput }
+                        localPrefs.edit().putString("peer_display_name", peerDisplayName).putString("peer_pairing_code", peerCodeInput).apply()
+                        activeChat = peerDisplayName
+                        pairMessage = "Searching for the peer on your local network…"
+                        showPairDialog = false
                     }
-                }) { Text("Validate code") }
+                }) { Text("Connect") }
             },
             dismissButton = { TextButton(onClick = { showPairDialog = false; pairMessage = null }) { Text("Close") } }
         )
@@ -756,7 +788,7 @@ private fun SettingsPanel(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Unison", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D2D42))
                 Text("Version 1.0.0", fontSize = 12.sp, color = Color(0xFF7B8797))
-                Text("The direct messaging, delivery receipt and voice/video calling engine is still not connected. Pairing code validation alone does not establish a live connection.", fontSize = 12.sp, lineHeight = 18.sp, color = Color(0xFF8A5A19))
+                Text("Direct text messaging uses local Wi-Fi peer discovery and TCP. Both phones must be on the same reachable network and pair with each other. Internet-wide connections and voice/video calls are not implemented.", fontSize = 12.sp, lineHeight = 18.sp, color = Color(0xFF8A5A19))
                 Text("Identity fingerprint", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 Text(identity, fontSize = 11.sp, color = Color(0xFF718096))
             }
