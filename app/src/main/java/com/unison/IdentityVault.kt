@@ -38,7 +38,7 @@ object IdentityVault {
     }
 
     fun newPairingCode(): String {
-        val alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*"
+        val alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
         val random = SecureRandom()
         val chars = CharArray(28) { alphabet[random.nextInt(alphabet.length)] }
         return chars.toList().chunked(4).joinToString("-") { it.joinToString("") }
