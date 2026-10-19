@@ -129,7 +129,7 @@ private fun UnisonApp() {
                 } else {
                     TopAppBar(
                         title = {
-                            Column {
+                            Column(Modifier.clickable { showPairDialog = true }) {
                                 Text(activeChat ?: "", fontWeight = FontWeight.SemiBold)
                                 Text(if (presence == "Offline") "You are offline" else "Direct status not connected", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -175,7 +175,7 @@ private fun UnisonApp() {
                     },
                     onMessageInfo = { showInfo = it }
                 )
-                tab == Tab.CHATS -> ChatList(Modifier.padding(padding)) { activeChat = it }
+                tab == Tab.CHATS -> ChatList(Modifier.padding(padding), peerDisplayName) { activeChat = it }
                 tab == Tab.CONTACTS -> EmptyPanel(Modifier.padding(padding), "Contacts", "Pair with a person using their uppercase pairing code.")
                 tab == Tab.CALLS -> EmptyPanel(Modifier.padding(padding), "Calls", "Voice and video call history will appear here when the direct call engine is connected.")
                 else -> SettingsPanel(
@@ -275,11 +275,11 @@ private fun UnisonApp() {
 
 
 @Composable
-private fun ChatList(modifier: Modifier, onOpen: (String) -> Unit) {
+private fun ChatList(modifier: Modifier, peerDisplayName: String, onOpen: (String) -> Unit) {
     var search by remember { mutableStateOf("") }
     val chats = listOf(
         ChatItem("UNISON Notes", "Your conversations stay encrypted locally.", "10:44", 0, Color(0xFF4D8DE8)),
-        ChatItem("Arjun", "Message delivery depends on a direct connection.", "Yesterday", 2, Color(0xFF16A085)),
+        ChatItem(peerDisplayName.ifBlank { "Person 2" }, "Message delivery depends on a direct connection.", "Yesterday", 2, Color(0xFF16A085)),
         ChatItem("Family group", "No central group server configured", "Mon", 0, Color(0xFF8E68D8))
     )
     Column(modifier.fillMaxSize().background(Color.White)) {
