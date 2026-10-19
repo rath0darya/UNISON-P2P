@@ -19,6 +19,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -366,33 +367,6 @@ private fun UnisonApp() {
             dismissButton = { TextButton(onClick = { showPairDialog = false; pairMessage = null }) { Text("Close") } }
         )
 
-        if (!notificationAllowed || showPermissionGate) AlertDialog(
-            onDismissRequest = { showPermissionGate = true },
-            title = { Text("Notifications are required") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Unison needs notifications enabled to show incoming message and call alerts and to keep you informed about background activity.")
-                    Text("You can choose whether to allow camera, microphone and media access. Notifications must be enabled to continue using this app.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-                        notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                    } else {
-                        showPermissionGate = false
-                        context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
-                    }
-                }) { Text("Allow notifications") }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    showPermissionGate = true
-                    context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
-                }) { Text("Open app settings") }
-            }
-        )
-
         showInfo?.let { message ->
             AlertDialog(
                 onDismissRequest = { showInfo = null },
@@ -645,7 +619,7 @@ private fun ChatScreen(
                     AttachmentTile("Audio", "Music and voice", Icons.Default.Call) { showAttachments = false; audioPicker.launch(arrayOf("audio/*")) }
                     AttachmentTile("Location", "Places", Icons.Default.Info) { showAttachments = false; Toast.makeText(context, "Location sharing is not connected yet.", Toast.LENGTH_LONG).show() }
                 }
-                AttachmentTile("Contact", "Share a contact", Icons.Default.Contacts) { showAttachments = false; Toast.makeText(context, "Contact sharing is not connected yet.", Toast.LENGTH_LONG).show() }
+                Row { AttachmentTile("Contact", "Share a contact", Icons.Default.Contacts) { showAttachments = false; Toast.makeText(context, "Contact sharing is not connected yet.", Toast.LENGTH_LONG).show() } }
                 Text("Picker works on this device. Sending attachments requires the live transport, which is not implemented yet.", fontSize = 11.sp, color = Color(0xFF8A5A19))
             }
         },
@@ -654,7 +628,7 @@ private fun ChatScreen(
 }
 
 @Composable
-private fun AttachmentTile(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+private fun RowScope.AttachmentTile(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Surface(
         Modifier.weight(1f).clickable(onClick = onClick),
         color = Color(0xFFF3F6FA),
@@ -690,12 +664,20 @@ private fun TickMark(status: Int) {
 
 @Composable
 private fun EmptyPanel(modifier: Modifier, title: String, description: String) {
-    Column(modifier.fillMaxSize().background(Color.White).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Icon(Icons.Default.Info, null, tint = UnisonBlue, modifier = Modifier.size(42.dp))
-        Spacer(Modifier.height(12.dp))
-        Text(title, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+    Column(modifier.fillMaxSize().background(Color(0xFFF4F7FB)).padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Box(Modifier.size(104.dp).background(Color(0xFFE4EDFC), CircleShape), contentAlignment = Alignment.Center) {
+            Box(Modifier.size(72.dp).background(Color.White, CircleShape), contentAlignment = Alignment.Center) {
+                Icon(if (title == "Calls") Icons.Default.Call else Icons.Default.Contacts, null, tint = UnisonBlue, modifier = Modifier.size(32.dp))
+            }
+        }
+        Spacer(Modifier.height(20.dp))
+        Text(title, fontSize = 23.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D2D42))
         Spacer(Modifier.height(8.dp))
-        Text(description, color = Color(0xFF6C7683))
+        Text(description, color = Color(0xFF718096), fontSize = 13.sp, lineHeight = 19.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Spacer(Modifier.height(18.dp))
+        Surface(color = Color.White, shape = RoundedCornerShape(14.dp), shadowElevation = 1.dp) {
+            Text("Ready when connection is available", Modifier.padding(horizontal = 15.dp, vertical = 11.dp), color = Color(0xFF60718A), fontSize = 12.sp)
+        }
     }
 }
 
@@ -714,34 +696,96 @@ private fun SettingsPanel(
     onRequestNotifications: () -> Unit,
     onBackground: () -> Unit
 ) {
-    Column(modifier.fillMaxSize().background(Color.White).padding(18.dp).verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("Settings", fontSize = 25.sp, fontWeight = FontWeight.Bold)
-        Text("Privacy, identity and local storage", color = Color(0xFF687481))
-        SettingsItem("My identity & pairing code", "Copy or share your pairing code", onIdentity)
-        SettingsItem("Pair with a person", "Enter another person's pairing code", onPair)
-        Text("Names on this phone", fontWeight = FontWeight.SemiBold)
-        OutlinedTextField(value = yourDisplayName, onValueChange = onYourDisplayName, label = { Text("Your display name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        OutlinedTextField(value = peerDisplayName, onValueChange = onPeerDisplayName, label = { Text("Other person's display name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-        Text("Names are local labels only; they do not create an account or connect to a backend.", fontSize = 12.sp, color = Color(0xFF687481))
-        Text("Availability preference", fontWeight = FontWeight.SemiBold)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = presence == "Online", onClick = { onPresence("Online") }, label = { Text("Online") })
-            FilterChip(selected = presence == "Offline", onClick = { onPresence("Offline") }, label = { Text("Offline") })
+    Column(modifier.fillMaxSize().background(Color(0xFFF4F7FB)).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
+        Surface(color = Color.White, shadowElevation = 1.dp) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Settings", fontSize = 27.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1B2B40))
+                Text("Make Unison feel like yours.", fontSize = 13.sp, color = Color(0xFF718096))
+            }
         }
-        SettingsItem("Allow notifications", "Request Android notification permission", onRequestNotifications)
-        SettingsItem("Background connection", "Start the foreground service notification", onBackground)
-        Text("Private fingerprint", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        Text(identity, fontSize = 11.sp, color = Color(0xFF687481))
-        Text("The live P2P transport, real delivery receipts, and incoming-call engine are not connected yet. Availability above is currently a local preference.", fontSize = 12.sp, color = Color(0xFF8A4D16))
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            shape = RoundedCornerShape(22.dp),
+            color = Color(0xFF1769E0),
+            shadowElevation = 3.dp
+        ) {
+            Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Box(Modifier.size(58.dp).background(Color.White.copy(alpha = 0.16f), CircleShape), contentAlignment = Alignment.Center) {
+                    Text(yourDisplayName.trim().take(1).ifEmpty { "U" }.uppercase(), color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(yourDisplayName.ifBlank { "Your name" }, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Personal profile on this device", color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp)
+                }
+                Icon(Icons.Default.Info, null, tint = Color.White.copy(alpha = 0.9f))
+            }
+        }
+        SettingsSectionTitle("PROFILE")
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Surface(color = Color.White, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8EDF4))) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(value = yourDisplayName, onValueChange = onYourDisplayName, label = { Text("Your display name") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
+                    OutlinedTextField(value = peerDisplayName, onValueChange = onPeerDisplayName, label = { Text("Other person's local name") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
+                    Text("Names are stored on this phone. They do not create an online account.", fontSize = 11.sp, color = Color(0xFF7B8797))
+                }
+            }
+        }
+        SettingsSectionTitle("PEOPLE & PAIRING")
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            SettingsItem("My identity & pairing code", "Copy your code or view your identity", Icons.Default.Lock, onIdentity)
+            SettingsItem("Pair with a person", "Enter their uppercase pairing code", Icons.Default.Add, onPair)
+        }
+        SettingsSectionTitle("AVAILABILITY")
+        Surface(Modifier.fillMaxWidth().padding(horizontal = 16.dp), color = Color.White, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8EDF4))) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("Show me as", fontWeight = FontWeight.SemiBold, color = Color(0xFF27384D))
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    FilterChip(selected = presence == "Online", onClick = { onPresence("Online") }, label = { Text("Online") }, leadingIcon = { Box(Modifier.size(7.dp).background(Color(0xFF28B878), CircleShape)) })
+                    FilterChip(selected = presence == "Offline", onClick = { onPresence("Offline") }, label = { Text("Offline") }, leadingIcon = { Box(Modifier.size(7.dp).background(Color(0xFF9AA5B3), CircleShape)) })
+                }
+                Text("This is currently a local preference; it does not report live network presence.", fontSize = 11.sp, color = Color(0xFF7B8797))
+            }
+        }
+        SettingsSectionTitle("APP & PERMISSIONS")
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+            SettingsItem("Notifications", "Required for message and call alerts", Icons.Default.Info, onRequestNotifications)
+            SettingsItem("Background activity", "Show the app's foreground-service notification", Icons.Default.Call, onBackground)
+        }
+        SettingsSectionTitle("ABOUT UNISON")
+        Surface(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp), color = Color.White, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8EDF4))) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Unison", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D2D42))
+                Text("Version 1.0.0", fontSize = 12.sp, color = Color(0xFF7B8797))
+                Text("The direct messaging, delivery receipt and voice/video calling engine is still not connected. Pairing code validation alone does not establish a live connection.", fontSize = 12.sp, lineHeight = 18.sp, color = Color(0xFF8A5A19))
+                Text("Identity fingerprint", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text(identity, fontSize = 11.sp, color = Color(0xFF718096))
+            }
+        }
     }
 }
 
 @Composable
-private fun SettingsItem(title: String, subtitle: String, onClick: () -> Unit) {
-    Surface(Modifier.fillMaxWidth().clickable { onClick() }, color = AppBg, shape = RoundedCornerShape(14.dp)) {
-        Column(Modifier.padding(14.dp)) {
-            Text(title, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, fontSize = 12.sp, color = Color(0xFF6C7683))
+private fun SettingsSectionTitle(title: String) {
+    Text(title, modifier = Modifier.padding(start = 21.dp, top = 9.dp, bottom = 9.dp), fontSize = 10.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold, color = Color(0xFF8491A2))
+}
+
+@Composable
+private fun SettingsItem(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Surface(
+        Modifier.fillMaxWidth().clickable(onClick = onClick),
+        color = Color.White,
+        shape = RoundedCornerShape(18.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8EDF4))
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(13.dp)) {
+            Box(Modifier.size(42.dp).background(Color(0xFFEAF1FF), RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = UnisonBlue, modifier = Modifier.size(21.dp))
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, fontWeight = FontWeight.SemiBold, color = Color(0xFF26374B), fontSize = 14.sp)
+                Text(subtitle, fontSize = 11.sp, color = Color(0xFF7B8797))
+            }
+            Icon(Icons.Default.MoreVert, null, tint = Color(0xFF9AA5B3), modifier = Modifier.size(18.dp))
         }
     }
 }
