@@ -772,6 +772,7 @@ private fun SettingsPanel(
     onRequestNotifications: () -> Unit,
     onBackground: () -> Unit
 ) {
+    var signalingDraft by remember(signalingUrl) { mutableStateOf(signalingUrl) }
     Column(modifier.fillMaxSize().background(Color(0xFFF4F7FB)).verticalScroll(androidx.compose.foundation.rememberScrollState())) {
         Surface(color = Color.White, shadowElevation = 1.dp) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -810,7 +811,8 @@ private fun SettingsPanel(
         Surface(Modifier.fillMaxWidth().padding(horizontal = 16.dp), color = Color.White, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8EDF4))) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Signaling server WebSocket URL", fontWeight = FontWeight.SemiBold, color = Color(0xFF26374B), fontSize = 14.sp)
-                OutlinedTextField(value = signalingUrl, onValueChange = onSignalingUrl, label = { Text("wss://your-server.example") }, placeholder = { Text("wss://…") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
+                OutlinedTextField(value = signalingDraft, onValueChange = { signalingDraft = it.trim() }, label = { Text("wss://your-server.example") }, placeholder = { Text("wss://…") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
+                Button(onClick = { onSignalingUrl(signalingDraft) }, modifier = Modifier.fillMaxWidth()) { Text("Save signaling server") }
                 Text("Deploy the separate Unison signaling server first, then paste its WSS URL here. Signaling exchanges pairing and WebRTC connection metadata; chat messages travel over the WebRTC data channel.", fontSize = 11.sp, lineHeight = 16.sp, color = Color(0xFF7B8797))
             }
         }
