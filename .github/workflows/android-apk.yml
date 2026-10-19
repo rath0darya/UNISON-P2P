@@ -12,6 +12,10 @@ on:
       - "gradle.properties"
       - ".github/workflows/android-apk.yml"
 
+concurrency:
+  group: unison-android-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
