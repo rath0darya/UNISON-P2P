@@ -21,7 +21,7 @@ class BackgroundConnectionService : Service() {
             manager.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_ID,
-                    "UNISON connection",
+                    "Unison connection",
                     NotificationManager.IMPORTANCE_LOW
                 ).apply { description = "Shows when UNISON background connection is enabled." }
             )
@@ -31,7 +31,7 @@ class BackgroundConnectionService : Service() {
         } else {
             @Suppress("DEPRECATION") Notification.Builder(this)
         }.setSmallIcon(R.drawable.ic_unison)
-            .setContentTitle("UNISON")
+            .setContentTitle("Unison")
             .setContentText("Background connection service is active")
             .setOngoing(true)
             .build()
