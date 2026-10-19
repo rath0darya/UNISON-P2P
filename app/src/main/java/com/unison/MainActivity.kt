@@ -87,6 +87,7 @@ private fun UnisonApp() {
     var pairMessage by remember { mutableStateOf<String?>(null) }
     var yourDisplayName by remember { mutableStateOf(localPrefs.getString("your_display_name", "Me") ?: "Me") }
     var peerDisplayName by remember { mutableStateOf(localPrefs.getString("peer_display_name", "") ?: "") }
+    var signalingUrl by remember { mutableStateOf(localPrefs.getString("signaling_url", "") ?: "") }
     var presence by remember { mutableStateOf(localPrefs.getString("presence", "Online") ?: "Online") }
     var showInfo by remember { mutableStateOf<ChatMessage?>(null) }
     var identity by remember { mutableStateOf("Generating identity…") }
@@ -96,8 +97,8 @@ private fun UnisonApp() {
         })
     }
     var messageDraft by remember { mutableStateOf("") }
-    var connectionStatus by remember { mutableStateOf("Starting local peer discovery…") }
-    var transport by remember { mutableStateOf<UnisonLibp2pNode?>(null) }
+    var connectionStatus by remember { mutableStateOf("Configure a WebSocket signaling server in Settings") }
+    var transport by remember { mutableStateOf<UnisonWebRtcTransport?>(null) }
     val messages = remember {
         mutableStateListOf<ChatMessage>().apply {
             runCatching {
@@ -132,8 +133,8 @@ private fun UnisonApp() {
         localPrefs.edit().putString("chat_messages", saved.toString()).apply()
     }
 
-    DisposableEffect(pairingCode, yourDisplayName) {
-        val engine = UnisonLibp2pNode(context, pairingCode, yourDisplayName, object : UnisonLibp2pNode.Callback {
+    DisposableEffect(pairingCode, yourDisplayName, signalingUrl) {
+        val engine = UnisonWebRtcTransport(context, pairingCode, yourDisplayName, signalingUrl, object : UnisonWebRtcTransport.Callback {
             override fun onStatus(status: String) {
                 connectionStatus = status
                 if (status.startsWith("Connected directly to ")) {
@@ -144,6 +145,10 @@ private fun UnisonApp() {
                         activeChat = remoteName
                     }
                 }
+            }
+            override fun onPeerName(name: String) {
+                peerDisplayName = name
+                localPrefs.edit().putString("peer_display_name", name).apply()
             }
             override fun onMessage(text: String, fromName: String, timestamp: Long) {
                 peerDisplayName = fromName
@@ -289,7 +294,7 @@ private fun UnisonApp() {
                                 persistMessages()
                                 messageDraft = ""
                             } else {
-                                Toast.makeText(context, "Not connected. Pair with the other phone while both devices are on the same Wi-Fi network.", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "Message not sent. Check signaling-server settings and wait until the WebRTC data channel is connected.", Toast.LENGTH_LONG).show()
                             }
                         }
                     },
@@ -309,6 +314,8 @@ private fun UnisonApp() {
                     presence = presence,
                     onPresence = { presence = it; localPrefs.edit().putString("presence", it).apply() },
                     onPair = { showPairDialog = true },
+                    signalingUrl = signalingUrl,
+                    onSignalingUrl = { value -> signalingUrl = value.trim(); localPrefs.edit().putString("signaling_url", value.trim()).apply() },
                     onRequestNotifications = {
                         if (android.os.Build.VERSION.SDK_INT >= 33 &&
                             context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -410,7 +417,7 @@ private fun UnisonApp() {
                         modifier = Modifier.fillMaxWidth()
                     )
                     pairMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
-                    Text(connectionStatus + ". libp2p is running. This build currently discovers peers on the same Wi-Fi/LAN; global rendezvous and NAT traversal are not configured.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(connectionStatus + ". WebRTC sends chat data peer-to-peer; the signaling server only coordinates pairing. Configure its secure WebSocket URL in Settings.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
             confirmButton = {
@@ -425,7 +432,7 @@ private fun UnisonApp() {
                         peerDisplayName = peerDisplayName.ifBlank { peerCodeInput }
                         localPrefs.edit().putString("peer_display_name", peerDisplayName).putString("peer_pairing_code", peerCodeInput).apply()
                         activeChat = peerDisplayName
-                        pairMessage = "Searching for the peer on your local network…"
+                        pairMessage = "Requesting the peer through your signaling server…"
                         showPairDialog = false
                     }
                 }) { Text("Connect") }
@@ -760,6 +767,8 @@ private fun SettingsPanel(
     presence: String,
     onPresence: (String) -> Unit,
     onPair: () -> Unit,
+    signalingUrl: String,
+    onSignalingUrl: (String) -> Unit,
     onRequestNotifications: () -> Unit,
     onBackground: () -> Unit
 ) {
@@ -797,6 +806,14 @@ private fun SettingsPanel(
                 }
             }
         }
+        SettingsSectionTitle("NETWORK & SIGNALING")
+        Surface(Modifier.fillMaxWidth().padding(horizontal = 16.dp), color = Color.White, shape = RoundedCornerShape(20.dp), border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE8EDF4))) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Signaling server WebSocket URL", fontWeight = FontWeight.SemiBold, color = Color(0xFF26374B), fontSize = 14.sp)
+                OutlinedTextField(value = signalingUrl, onValueChange = onSignalingUrl, label = { Text("wss://your-server.example") }, placeholder = { Text("wss://…") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
+                Text("Deploy the separate Unison signaling server first, then paste its WSS URL here. Signaling exchanges pairing and WebRTC connection metadata; chat messages travel over the WebRTC data channel.", fontSize = 11.sp, lineHeight = 16.sp, color = Color(0xFF7B8797))
+            }
+        }
         SettingsSectionTitle("PEOPLE & PAIRING")
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
             SettingsItem("My identity & pairing code", "Copy your code or view your identity", Icons.Default.Lock, onIdentity)
@@ -823,7 +840,7 @@ private fun SettingsPanel(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Unison", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D2D42))
                 Text("Version 1.0.0", fontSize = 12.sp, color = Color(0xFF7B8797))
-                Text("Direct text messaging now uses the open-source libp2p protocol engine with encrypted peer transport. This build discovers peers on the same local network; worldwide rendezvous, NAT traversal/relay and voice/video calling are not yet configured.", fontSize = 12.sp, lineHeight = 18.sp, color = Color(0xFF8A5A19))
+                Text("Chat uses WebRTC data channels for peer-to-peer transport. A separately deployed WebSocket signaling service is required for pairing. STUN is configured; some networks require a TURN relay for reliable connectivity. Voice/video calls are not yet wired to media tracks.", fontSize = 12.sp, lineHeight = 18.sp, color = Color(0xFF8A5A19))
                 Text("Identity fingerprint", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 Text(identity, fontSize = 11.sp, color = Color(0xFF718096))
             }
