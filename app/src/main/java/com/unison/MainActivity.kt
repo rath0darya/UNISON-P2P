@@ -182,6 +182,19 @@ private fun UnisonApp() {
                     modifier = Modifier.padding(padding),
                     identity = identity,
                     onIdentity = { showIdentity = true },
+                    yourDisplayName = yourDisplayName,
+                    peerDisplayName = peerDisplayName,
+                    onYourDisplayName = { yourDisplayName = it },
+                    onPeerDisplayName = { peerDisplayName = it },
+                    presence = presence,
+                    onPresence = { presence = it },
+                    onPair = { showPairDialog = true },
+                    onRequestNotifications = {
+                        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+                            context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                        ) (context as? ComponentActivity)?.requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 441)
+                        else Toast.makeText(context, "Notifications are already permitted", Toast.LENGTH_SHORT).show()
+                    },
                     onBackground = {
                         if (android.os.Build.VERSION.SDK_INT < 33 ||
                             context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -392,16 +405,39 @@ private fun EmptyPanel(modifier: Modifier, title: String, description: String) {
 }
 
 @Composable
-private fun SettingsPanel(modifier: Modifier, identity: String, onIdentity: () -> Unit, onBackground: () -> Unit) {
+private fun SettingsPanel(
+    modifier: Modifier,
+    identity: String,
+    onIdentity: () -> Unit,
+    yourDisplayName: String,
+    peerDisplayName: String,
+    onYourDisplayName: (String) -> Unit,
+    onPeerDisplayName: (String) -> Unit,
+    presence: String,
+    onPresence: (String) -> Unit,
+    onPair: () -> Unit,
+    onRequestNotifications: () -> Unit,
+    onBackground: () -> Unit
+) {
     Column(modifier.fillMaxSize().background(Color.White).padding(18.dp).verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Settings", fontSize = 25.sp, fontWeight = FontWeight.Bold)
         Text("Privacy, identity and local storage", color = Color(0xFF687481))
-        SettingsItem("Identity & pairing code", "Manage your public fingerprint", onIdentity)
-        SettingsItem("Encrypted local storage", "AES-GCM vault in app-private storage", {})
-        SettingsItem("Background notification", "Start the persistent service foundation", onBackground)
-        SettingsItem("Package name", "com.unison", {})
-        Text("Fingerprint: $identity", fontSize = 11.sp, color = Color(0xFF687481))
-        Text("This native starter does not yet provide production P2P networking, calls, groups or exportable recovery backups.", fontSize = 12.sp, color = Color(0xFF8A4D16))
+        SettingsItem("My identity & pairing code", "Copy or share your pairing code", onIdentity)
+        SettingsItem("Pair with a person", "Enter another person's pairing code", onPair)
+        Text("Names on this phone", fontWeight = FontWeight.SemiBold)
+        OutlinedTextField(value = yourDisplayName, onValueChange = onYourDisplayName, label = { Text("Your display name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(value = peerDisplayName, onValueChange = onPeerDisplayName, label = { Text("Other person's display name") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        Text("Names are local labels only; they do not create an account or connect to a backend.", fontSize = 12.sp, color = Color(0xFF687481))
+        Text("Availability preference", fontWeight = FontWeight.SemiBold)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(selected = presence == "Online", onClick = { onPresence("Online") }, label = { Text("Online") })
+            FilterChip(selected = presence == "Offline", onClick = { onPresence("Offline") }, label = { Text("Offline") })
+        }
+        SettingsItem("Allow notifications", "Request Android notification permission", onRequestNotifications)
+        SettingsItem("Background connection", "Start the foreground service notification", onBackground)
+        Text("Private fingerprint", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Text(identity, fontSize = 11.sp, color = Color(0xFF687481))
+        Text("The live P2P transport, real delivery receipts, and incoming-call engine are not connected yet. Availability above is currently a local preference.", fontSize = 12.sp, color = Color(0xFF8A4D16))
     }
 }
 
