@@ -431,6 +431,25 @@ private fun ChatScreen(
     onMessageInfo: (ChatMessage) -> Unit
 ) {
     val context = LocalContext.current
+    val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) Toast.makeText(context, "Photo selected. Sending will work when direct messaging is connected.", Toast.LENGTH_LONG).show()
+    }
+    val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) Toast.makeText(context, "Video selected. Sending will work when direct messaging is connected.", Toast.LENGTH_LONG).show()
+    }
+    val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) Toast.makeText(context, "Document selected. Sending will work when direct messaging is connected.", Toast.LENGTH_LONG).show()
+    }
+    val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) Toast.makeText(context, "Audio selected. Sending will work when direct messaging is connected.", Toast.LENGTH_LONG).show()
+    }
+    val cameraPicker = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        if (bitmap != null) Toast.makeText(context, "Photo captured. Sending will work when direct messaging is connected.", Toast.LENGTH_LONG).show()
+    }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) cameraPicker.launch(null)
+        else Toast.makeText(context, "Camera permission is needed to take a photo.", Toast.LENGTH_LONG).show()
+    }
     Column(modifier.fillMaxSize().background(Color(0xFFEAF0F5))) {
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 10.dp),
@@ -493,20 +512,16 @@ private fun ChatScreen(
                     }
                     AttachmentTile("Documents", "PDFs and other files", Icons.Default.Info) {
                         showAttachments = false
-                        runCatching { (context as? ComponentActivity)?.startActivityForResult(Intent.createChooser(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE), "Choose document"), 453) }.onFailure { Toast.makeText(context, "No document picker is available.", Toast.LENGTH_SHORT).show() }
+                        documentPicker.launch(arrayOf("*/*"))
                     }
                     AttachmentTile("Audio", "Choose an audio file", Icons.Default.Call) {
                         showAttachments = false
-                        runCatching { (context as? ComponentActivity)?.startActivityForResult(Intent.createChooser(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("audio/*").addCategory(Intent.CATEGORY_OPENABLE), "Choose audio"), 454) }.onFailure { Toast.makeText(context, "No audio picker is available.", Toast.LENGTH_SHORT).show() }
+                        audioPicker.launch(arrayOf("audio/*"))
                     }
                     AttachmentTile("Camera", "Take a photo", Icons.Default.Videocam) {
                         showAttachments = false
-                        if (context.checkSelfPermission(android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
-                            runCatching { (context as? ComponentActivity)?.startActivityForResult(Intent(MediaStore.ACTION_IMAGE_CAPTURE), 455) }.onFailure { Toast.makeText(context, "No camera app is available.", Toast.LENGTH_SHORT).show() }
-                        } else {
-                            Toast.makeText(context, "Allow camera access in Android app settings, then tap Camera again.", Toast.LENGTH_LONG).show()
-                            context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName)))
-                        }
+                        if (context.checkSelfPermission(android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) cameraPicker.launch(null)
+                        else cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
                     }
                     AttachmentTile("Location", "Share a place", Icons.Default.Info) { showAttachments = false; Toast.makeText(context, "Location sharing is not connected in this build.", Toast.LENGTH_LONG).show() }
                     AttachmentTile("Contact", "Share contact details", Icons.Default.Contacts) { showAttachments = false; Toast.makeText(context, "Contact sharing is not connected in this build.", Toast.LENGTH_LONG).show() }
