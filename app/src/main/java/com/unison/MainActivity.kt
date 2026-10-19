@@ -241,13 +241,13 @@ private fun UnisonApp() {
                         navigationIcon = { IconButton(onClick = { activeChat = null }) { Icon(Icons.Default.ArrowBack, "Back") } },
                         actions = {
                             IconButton(onClick = {
-                                if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) Toast.makeText(context, "Voice calls need a separate real-time audio session; this build supports direct text messaging on the same local network.", Toast.LENGTH_LONG).show()
+                                if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) Toast.makeText(context, "Voice calling is not connected yet; peer-to-peer text chat uses WebRTC when signaling and ICE negotiation succeed.", Toast.LENGTH_LONG).show()
                                 else (context as? ComponentActivity)?.requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 442)
                             }) { Icon(Icons.Default.Phone, "Voice call") }
                             IconButton(onClick = {
                                 val missing = arrayOf(android.Manifest.permission.CAMERA, android.Manifest.permission.RECORD_AUDIO).filter { context.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
                                 if (missing.isNotEmpty()) (context as? ComponentActivity)?.requestPermissions(missing.toTypedArray(), 443)
-                                else Toast.makeText(context, "Video calls need a separate real-time media engine; direct text messaging is available on the same local network.", Toast.LENGTH_LONG).show()
+                                else Toast.makeText(context, "Video calling is not connected yet; peer-to-peer text chat uses WebRTC when signaling and ICE negotiation succeed.", Toast.LENGTH_LONG).show()
                             }) { Icon(Icons.Default.Videocam, "Video call") }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
