@@ -1,17 +1,19 @@
 # UNISON native Android app
 
-This repository now includes an Android application module under `app/`. It uses the permanent application ID `com.unison` and a Telegram-inspired chat layout with custom vector-drawn WhatsApp-style status ticks.
+This repository includes a native Android application module under `app/`. It uses the permanent application ID `com.unison`, a Telegram-inspired chat layout, and WebRTC data-channel transport for peer-to-peer text chat.
 
 ## Current state
 
 The native module is an initial buildable UI/security foundation, not yet a complete messenger. It currently includes:
 - Compose chat-list and conversation UI, message timestamps, custom one/double ticks, and message-info timestamps.
+- WebRTC data-channel chat transport using Google WebRTC and a configurable WebSocket signaling URL.
+- A separate Node.js signaling service in `signaling-server/`, with a Render deployment blueprint.
 - A 32-character uppercase pairing-code generator with separators and a persistent Android Keystore EC identity fingerprint.
 - An AES-256-GCM encrypted local file vault using an Android Keystore key.
 - A foreground-service notification foundation.
 - A custom original UNISON vector app mark.
 
-Not yet implemented in this native module: interoperable P2P connection/discovery and NAT traversal, real message transport and acknowledgements, persistent Room database/repository wiring, encrypted export/import to a user-selected Documents folder, production-grade reviewed E2EE ratchet, file transfer, real voice/video calls, group membership/sync, and comprehensive notification/call integration. Demo chat rows are UI previews only; do not treat them as delivered messages. The existing web prototype and Python signaling code remain in the repository.
+Still incomplete: TURN relay configuration for difficult NATs, robust signaling reconnection and online presence, message delivery acknowledgements, persistent Room database/repository wiring, encrypted export/import to a user-selected Documents folder, a production-grade reviewed E2EE ratchet, file transfer, real voice/video media tracks, group membership/sync, and comprehensive notification/call integration. WebRTC connectivity has not been validated on physical devices in this environment. Demo chat rows are UI previews only; do not treat them as delivered messages. The existing web prototype and Python signaling code remain in the repository.
 
 ## Package and upgrades
 
