@@ -327,6 +327,33 @@ private fun UnisonApp() {
             dismissButton = { TextButton(onClick = { showPairDialog = false; pairMessage = null }) { Text("Close") } }
         )
 
+        if (!notificationAllowed || showPermissionGate) AlertDialog(
+            onDismissRequest = { showPermissionGate = true },
+            title = { Text("Notifications are required") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Unison needs notifications enabled to show incoming message and call alerts and to keep you informed about background activity.")
+                    Text("You can choose whether to allow camera, microphone and media access. Notifications must be enabled to continue using this app.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                        notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        showPermissionGate = false
+                        context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+                    }
+                }) { Text("Allow notifications") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showPermissionGate = true
+                    context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+                }) { Text("Open app settings") }
+            }
+        )
+
         showInfo?.let { message ->
             AlertDialog(
                 onDismissRequest = { showInfo = null },
@@ -404,7 +431,7 @@ private fun ChatScreen(
     onMessageInfo: (ChatMessage) -> Unit
 ) {
     val context = LocalContext.current
-    Column(modifier.fillMaxSize().background(Color(0xFFEAF0F5)).imePadding()) {
+    Column(modifier.fillMaxSize().background(Color(0xFFEAF0F5))) {
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 10.dp),
             reverseLayout = false,
@@ -437,7 +464,7 @@ private fun ChatScreen(
             }
         }
         Row(
-            Modifier.fillMaxWidth().background(Color.White).padding(horizontal = 10.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().background(Color.White).imePadding().navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
@@ -457,25 +484,29 @@ private fun ChatScreen(
                     AttachmentTile("Gallery", "Photos and images", Icons.Default.Contacts) {
                         showAttachments = false
                         val pick = Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE)
-                        runCatching { context.startActivity(Intent.createChooser(pick, "Choose photo")) }
+                        runCatching { (context as? ComponentActivity)?.startActivityForResult(Intent.createChooser(pick, "Choose photo"), 451) }.onFailure { Toast.makeText(context, "No photo picker is available.", Toast.LENGTH_SHORT).show() }
                     }
                     AttachmentTile("Videos", "Choose a video", Icons.Default.Videocam) {
                         showAttachments = false
                         val pick = Intent(Intent.ACTION_GET_CONTENT).setType("video/*").addCategory(Intent.CATEGORY_OPENABLE)
-                        runCatching { context.startActivity(Intent.createChooser(pick, "Choose video")) }
+                        runCatching { (context as? ComponentActivity)?.startActivityForResult(Intent.createChooser(pick, "Choose video"), 452) }.onFailure { Toast.makeText(context, "No video picker is available.", Toast.LENGTH_SHORT).show() }
                     }
                     AttachmentTile("Documents", "PDFs and other files", Icons.Default.Info) {
                         showAttachments = false
-                        runCatching { context.startActivity(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE)) }
+                        runCatching { (context as? ComponentActivity)?.startActivityForResult(Intent.createChooser(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE), "Choose document"), 453) }.onFailure { Toast.makeText(context, "No document picker is available.", Toast.LENGTH_SHORT).show() }
                     }
                     AttachmentTile("Audio", "Choose an audio file", Icons.Default.Call) {
                         showAttachments = false
-                        runCatching { context.startActivity(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("audio/*").addCategory(Intent.CATEGORY_OPENABLE)) }
+                        runCatching { (context as? ComponentActivity)?.startActivityForResult(Intent.createChooser(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("audio/*").addCategory(Intent.CATEGORY_OPENABLE), "Choose audio"), 454) }.onFailure { Toast.makeText(context, "No audio picker is available.", Toast.LENGTH_SHORT).show() }
                     }
                     AttachmentTile("Camera", "Take a photo", Icons.Default.Videocam) {
                         showAttachments = false
-                        if (context.checkSelfPermission(android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) runCatching { context.startActivity(Intent(MediaStore.ACTION_IMAGE_CAPTURE)) }
-                        else (context as? ComponentActivity)?.requestPermissions(arrayOf(android.Manifest.permission.CAMERA), 444)
+                        if (context.checkSelfPermission(android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+                            runCatching { (context as? ComponentActivity)?.startActivityForResult(Intent(MediaStore.ACTION_IMAGE_CAPTURE), 455) }.onFailure { Toast.makeText(context, "No camera app is available.", Toast.LENGTH_SHORT).show() }
+                        } else {
+                            Toast.makeText(context, "Allow camera access in Android app settings, then tap Camera again.", Toast.LENGTH_LONG).show()
+                            context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName)))
+                        }
                     }
                     AttachmentTile("Location", "Share a place", Icons.Default.Info) { showAttachments = false; Toast.makeText(context, "Location sharing is not connected in this build.", Toast.LENGTH_LONG).show() }
                     AttachmentTile("Contact", "Share contact details", Icons.Default.Contacts) { showAttachments = false; Toast.makeText(context, "Contact sharing is not connected in this build.", Toast.LENGTH_LONG).show() }
