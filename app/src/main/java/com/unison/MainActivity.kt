@@ -1,6 +1,13 @@
 package com.unison
 
 import android.content.Intent
+import android.net.Uri
+import android.provider.MediaStore
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.widget.Toast
@@ -57,6 +64,7 @@ private val BubbleGreen = Color(0xFFDDF7D2)
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         setContent { UnisonApp() }
     }
 }
@@ -87,10 +95,35 @@ private fun UnisonApp() {
         })
     }
     var messageDraft by remember { mutableStateOf("") }
-    val messages = remember { mutableStateListOf(
-        ChatMessage("Hey! Welcome to UNISON.", "10:42 AM", false, 2, System.currentTimeMillis() - 120000),
-        ChatMessage("Private chat, directly between devices where the network allows it.", "10:43 AM", true, 3, System.currentTimeMillis() - 60000, System.currentTimeMillis() - 55000, System.currentTimeMillis() - 40000)
-    ) }
+    val messages = remember { mutableStateListOf<ChatMessage>() }
+    var notificationAllowed by remember { mutableStateOf(Build.VERSION.SDK_INT < 33 || context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) }
+    var showPermissionGate by remember { mutableStateOf(false) }
+    val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        notificationAllowed = granted
+        showPermissionGate = !granted
+    }
+    val optionalPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+        if (results.values.any { !it }) Toast.makeText(context, "Some optional features will ask again when you use them.", Toast.LENGTH_LONG).show()
+        localPrefs.edit().putBoolean("optional_permissions_prompted", true).apply()
+    }
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= 33 && !notificationAllowed) notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+    }
+    LaunchedEffect(notificationAllowed) {
+        if (notificationAllowed && !localPrefs.getBoolean("optional_permissions_prompted", false)) {
+            val optionalPermissions = buildList {
+                add(android.Manifest.permission.CAMERA)
+                add(android.Manifest.permission.RECORD_AUDIO)
+                if (Build.VERSION.SDK_INT >= 33) {
+                    add("android.permission.READ_MEDIA_IMAGES")
+                    add("android.permission.READ_MEDIA_VIDEO")
+                    add("android.permission.READ_MEDIA_AUDIO")
+                    if (Build.VERSION.SDK_INT >= 34) add("android.permission.READ_MEDIA_VISUAL_USER_SELECTED")
+                } else add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+            optionalPermissionLauncher.launch(optionalPermissions.toTypedArray())
+        }
+    }
     LaunchedEffect(Unit) { identity = runCatching { IdentityVault.publicIdentityFingerprint() }.getOrElse { "Identity unavailable" } }
     BackHandler(enabled = showPairDialog || showIdentity || showInfo != null || activeChat != null || tab != Tab.CHATS) {
         when {
@@ -121,7 +154,7 @@ private fun UnisonApp() {
                                     Text("U", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 23.sp)
                                 }
                                 Column {
-                                    Text("UNISON", fontWeight = FontWeight.Bold)
+                                    Text("Unison", fontWeight = FontWeight.Bold)
                                     Text("Peer-to-peer messenger", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
@@ -142,8 +175,15 @@ private fun UnisonApp() {
                         },
                         navigationIcon = { IconButton(onClick = { activeChat = null }) { Icon(Icons.Default.ArrowBack, "Back") } },
                         actions = {
-                            IconButton(onClick = {}) { Icon(Icons.Default.Phone, "Voice call") }
-                            IconButton(onClick = {}) { Icon(Icons.Default.Videocam, "Video call") }
+                            IconButton(onClick = {
+                                if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) Toast.makeText(context, "Microphone permission is ready. The direct voice-call engine is not connected yet.", Toast.LENGTH_LONG).show()
+                                else (context as? ComponentActivity)?.requestPermissions(arrayOf(android.Manifest.permission.RECORD_AUDIO), 442)
+                            }) { Icon(Icons.Default.Phone, "Voice call") }
+                            IconButton(onClick = {
+                                val missing = arrayOf(android.Manifest.permission.CAMERA, android.Manifest.permission.RECORD_AUDIO).filter { context.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+                                if (missing.isEmpty()) Toast.makeText(context, "Camera and microphone permissions are ready. The direct video-call engine is not connected yet.", Toast.LENGTH_LONG).show()
+                                else (context as? ComponentActivity)?.requestPermissions(missing.toTypedArray(), 443)
+                            }) { Icon(Icons.Default.Videocam, "Video call") }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
                     )
@@ -210,9 +250,20 @@ private fun UnisonApp() {
             }
         }
 
+        if (!notificationAllowed || showPermissionGate) AlertDialog(
+            onDismissRequest = { },
+            title = { Text("Notifications are required") },
+            text = { Text("Unison needs notifications enabled for message and call alerts. Allow notifications to continue, or enable them in Android App info. Camera, microphone and media access remain your choice.") },
+            confirmButton = { TextButton(onClick = {
+                if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                else context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
+            }) { Text("Allow notifications") } },
+            dismissButton = { TextButton(onClick = { context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.packageName))) }) { Text("Open app settings") } }
+        )
+
         if (showIdentity) AlertDialog(
             onDismissRequest = { showIdentity = false },
-            title = { Text("Your UNISON identity") },
+            title = { Text("Your Unison identity") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Public fingerprint", fontWeight = FontWeight.SemiBold)
@@ -286,11 +337,7 @@ private fun UnisonApp() {
 @Composable
 private fun ChatList(modifier: Modifier, peerDisplayName: String, onOpen: (String) -> Unit) {
     var search by remember { mutableStateOf("") }
-    val chats = listOf(
-        ChatItem("UNISON Notes", "Your conversations stay encrypted locally.", "10:44", 0, Color(0xFF4D8DE8)),
-        ChatItem(peerDisplayName.ifBlank { "Person 2" }, "Message delivery depends on a direct connection.", "Yesterday", 2, Color(0xFF16A085)),
-        ChatItem("Family group", "No central group server configured", "Mon", 0, Color(0xFF8E68D8))
-    )
+    val chats = emptyList<ChatItem>()
     Column(modifier.fillMaxSize().background(Color.White)) {
         Surface(color = Color.White) {
             OutlinedTextField(
@@ -299,7 +346,15 @@ private fun ChatList(modifier: Modifier, peerDisplayName: String, onOpen: (Strin
                 shape = RoundedCornerShape(24.dp)
             )
         }
-        LazyColumn {
+        if (chats.isEmpty()) {
+            Column(Modifier.fillMaxSize().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Icon(Icons.Default.Chat, null, tint = UnisonBlue, modifier = Modifier.size(44.dp))
+                Spacer(Modifier.height(12.dp))
+                Text("No chats yet", fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height(6.dp))
+                Text("Pair with a person to start a conversation. No demo conversations are included.", color = Color(0xFF6C7683))
+            }
+        } else LazyColumn {
             items(chats.filter { it.name.contains(search, ignoreCase = true) || it.preview.contains(search, ignoreCase = true) }) { chat ->
                 Row(
                     Modifier.fillMaxWidth().clickable { onOpen(chat.name) }.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -336,16 +391,16 @@ private fun ChatScreen(
     onSend: () -> Unit,
     onMessageInfo: (ChatMessage) -> Unit
 ) {
-    Column(modifier.fillMaxSize().background(Color(0xFFEAF0F5))) {
+    Column(modifier.fillMaxSize().background(Color(0xFFEAF0F5)).imePadding()) {
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 10.dp),
             reverseLayout = false,
             contentPadding = PaddingValues(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            item {
+            if (messages.isEmpty()) item {
                 Surface(color = Color(0xFFE0EAF5), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
-                    Text("End-to-end encrypted design • direct peer engine not connected in this build", Modifier.padding(10.dp), fontSize = 11.sp, color = Color(0xFF425A70))
+                    Text("No messages yet. Direct peer-to-peer delivery is not connected in this build.", Modifier.padding(10.dp), fontSize = 12.sp, color = Color(0xFF425A70))
                 }
             }
             items(messages) { message ->
@@ -378,9 +433,42 @@ private fun ChatScreen(
                 shape = RoundedCornerShape(26.dp)
             )
             Spacer(Modifier.width(8.dp))
+            var showAttachments by remember { mutableStateOf(false) }
+            IconButton(onClick = { showAttachments = true }) { Icon(Icons.Default.Add, "Attachments") }
             IconButton(onClick = onSend, modifier = Modifier.size(48.dp).background(UnisonBlue, CircleShape)) {
                 Icon(Icons.Default.Send, "Send message", tint = Color.White)
             }
+            if (showAttachments) AlertDialog(
+                onDismissRequest = { showAttachments = false }, title = { Text("Attach to message") },
+                text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AttachmentTile("Gallery", "Photos and videos", Icons.Default.Contacts) {
+                        showAttachments = false
+                        val pick = Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE)
+                        runCatching { context.startActivity(Intent.createChooser(pick, "Choose photo")) }
+                    }
+                    AttachmentTile("Documents", "PDFs and other files", Icons.Default.Info) {
+                        showAttachments = false
+                        runCatching { context.startActivity(Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE)) }
+                    }
+                    AttachmentTile("Camera", "Take a photo", Icons.Default.Videocam) {
+                        showAttachments = false
+                        if (context.checkSelfPermission(android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) runCatching { context.startActivity(Intent(MediaStore.ACTION_IMAGE_CAPTURE)) }
+                        else (context as? ComponentActivity)?.requestPermissions(arrayOf(android.Manifest.permission.CAMERA), 444)
+                    }
+                    AttachmentTile("Location", "Share a place", Icons.Default.Info) { showAttachments = false; Toast.makeText(context, "Location sharing is not connected in this build.", Toast.LENGTH_LONG).show() }
+                    AttachmentTile("Contact", "Share contact details", Icons.Default.Contacts) { showAttachments = false; Toast.makeText(context, "Contact sharing is not connected in this build.", Toast.LENGTH_LONG).show() }
+                } }, confirmButton = { TextButton(onClick = { showAttachments = false }) { Text("Close") } }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AttachmentTile(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Surface(Modifier.fillMaxWidth().clickable(onClick = onClick), color = AppBg, shape = RoundedCornerShape(14.dp)) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(icon, null, tint = UnisonBlue, modifier = Modifier.size(25.dp))
+            Column { Text(title, fontWeight = FontWeight.SemiBold); Text(subtitle, fontSize = 12.sp, color = Color(0xFF6C7683)) }
         }
     }
 }
