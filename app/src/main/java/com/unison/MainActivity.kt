@@ -284,7 +284,7 @@ private fun UnisonApp() {
                     Text(pairingCode, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     OutlinedButton(onClick = {
                         context.getSystemService(ClipboardManager::class.java)
-                            .setPrimaryClip(ClipData.newPlainText("UNISON pairing code", pairingCode))
+                            .setPrimaryClip(ClipData.newPlainText("Unison pairing code", pairingCode))
                         Toast.makeText(context, "Pairing code copied", Toast.LENGTH_SHORT).show()
                     }, modifier = Modifier.fillMaxWidth()) { Text("Copy pairing code") }
                     Text("Share this code privately. A code alone cannot bypass carrier NAT or make an unreachable phone connect.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -302,7 +302,7 @@ private fun UnisonApp() {
             title = { Text("Pair with a person") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text("Enter the other person's UNISON pairing code.")
+                    Text("Enter the other person's Unison pairing code.")
                     OutlinedTextField(
                         value = peerCodeInput,
                         onValueChange = { value -> peerCodeInput = value.uppercase().filter { it.isLetterOrDigit() || it == '-' }.take(40) },
