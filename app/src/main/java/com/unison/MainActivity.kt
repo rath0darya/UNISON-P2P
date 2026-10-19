@@ -35,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -62,6 +63,7 @@ private data class ChatMessage(val text: String, val time: String, val outgoing:
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun UnisonApp() {
+    val context = LocalContext.current
     var tab by remember { mutableStateOf(Tab.CHATS) }
     var activeChat by remember { mutableStateOf<String?>(null) }
     var showIdentity by remember { mutableStateOf(false) }
@@ -163,8 +165,8 @@ private fun UnisonApp() {
                     onIdentity = { showIdentity = true },
                     onBackground = {
                         if (android.os.Build.VERSION.SDK_INT < 33 ||
-                            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                        ) startForegroundService(Intent(this@UnisonAppActivityHolder.activity, BackgroundConnectionService::class.java))
+                            context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        ) context.startForegroundService(Intent(context, BackgroundConnectionService::class.java))
                     }
                 )
             }
@@ -177,7 +179,7 @@ private fun UnisonApp() {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("Public fingerprint", fontWeight = FontWeight.SemiBold)
                     Text(identity, fontSize = 12.sp)
-                    Text("Pairing code (32 characters)", fontWeight = FontWeight.SemiBold)
+                    Text("Pairing code (34 characters)", fontWeight = FontWeight.SemiBold)
                     Text(pairingCode, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Text("Share this code privately. A code alone cannot bypass carrier NAT or make an unreachable phone connect.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -204,9 +206,6 @@ private fun UnisonApp() {
     }
 }
 
-private object UnisonAppActivityHolder {
-    lateinit var activity: android.app.Activity
-}
 
 @Composable
 private fun ChatList(modifier: Modifier, onOpen: (String) -> Unit) {

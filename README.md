@@ -92,3 +92,16 @@ The project remains a prototype. Decentralization, end-to-end security, privacy,
 - Peer IDs are displayed and accepted as uppercase 20-character Base32 strings. Existing browser-stored lowercase IDs are normalized when the app starts.
 - A peer ID/hash identifies an identity; it cannot by itself establish a live WebRTC connection. After the signaling service is deployed and configured, signed offer/answer exchange happens automatically; manual pairing remains available as a fallback.
 - Adding salt or punctuation to the displayed peer ID would not by itself improve connection security. The identity is derived from a public-key hash, and connection descriptions remain signature-verified; WebRTC encrypts data in transit.
+
+
+## Native Android app (new)
+
+A native Kotlin/Jetpack Compose app module is now available in `app/`, using the fixed package/application ID `com.unison`. It adds a Telegram-inspired mobile chat layout, custom-drawn sent/delivered/read ticks, message-info timestamps, a persistent Android Keystore identity fingerprint, an AES-GCM encrypted local-vault primitive, an original UNISON vector icon, and a foreground-notification service foundation.
+
+**This is an initial native foundation, not a completed production messenger.** Native P2P transport, reliable receipts, calls, file transfer, group messaging, encrypted backup export/import, and a reviewed end-to-end ratchet still need implementation and testing. The existing web prototype and Python signaling service remain in place. See [ANDROID_APP.md](ANDROID_APP.md) for scope, limitations, and build instructions.
+
+### Stable APK location and app updates
+
+The Android workflow publishes a signed APK to `Download/UNISON.apk` in this repository after it is configured with a persistent signing key. Set GitHub Actions repository secrets `UNISON_KEYSTORE_BASE64`, `UNISON_KEYSTORE_PASSWORD`, `UNISON_KEY_ALIAS`, and `UNISON_KEY_PASSWORD`. Never commit the release keystore or passwords.
+
+Keep `applicationId = "com.unison"` and the same signing certificate for every update. This avoids normal package/signature conflicts. Android Keystore identity and storage keys survive app updates, but not guaranteed uninstall/reinstall; recovery export is still required for that case.
