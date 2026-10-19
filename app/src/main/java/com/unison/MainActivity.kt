@@ -97,7 +97,7 @@ private fun UnisonApp() {
     }
     var messageDraft by remember { mutableStateOf("") }
     var connectionStatus by remember { mutableStateOf("Starting local peer discovery…") }
-    var transport by remember { mutableStateOf<LanP2PTransport?>(null) }
+    var transport by remember { mutableStateOf<UnisonLibp2pNode?>(null) }
     val messages = remember {
         mutableStateListOf<ChatMessage>().apply {
             runCatching {
@@ -133,7 +133,7 @@ private fun UnisonApp() {
     }
 
     DisposableEffect(pairingCode, yourDisplayName) {
-        val engine = LanP2PTransport(context, pairingCode, yourDisplayName, object : LanP2PTransport.Listener {
+        val engine = UnisonLibp2pNode(context, pairingCode, yourDisplayName, object : UnisonLibp2pNode.Callback {
             override fun onStatus(status: String) {
                 connectionStatus = status
                 if (status.startsWith("Connected directly to ")) {
@@ -410,7 +410,7 @@ private fun UnisonApp() {
                         modifier = Modifier.fillMaxWidth()
                     )
                     pairMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
-                    Text(connectionStatus + ". Direct connection works when both phones can discover each other on the same Wi-Fi/LAN; this does not provide Internet-wide NAT traversal.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(connectionStatus + ". libp2p is running. This build currently discovers peers on the same Wi-Fi/LAN; global rendezvous and NAT traversal are not configured.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
             confirmButton = {
@@ -823,7 +823,7 @@ private fun SettingsPanel(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Unison", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1D2D42))
                 Text("Version 1.0.0", fontSize = 12.sp, color = Color(0xFF7B8797))
-                Text("Direct text messaging uses local Wi-Fi peer discovery and TCP. Both phones must be on the same reachable network and pair with each other. Internet-wide connections and voice/video calls are not implemented.", fontSize = 12.sp, lineHeight = 18.sp, color = Color(0xFF8A5A19))
+                Text("Direct text messaging now uses the open-source libp2p protocol engine with encrypted peer transport. This build discovers peers on the same local network; worldwide rendezvous, NAT traversal/relay and voice/video calling are not yet configured.", fontSize = 12.sp, lineHeight = 18.sp, color = Color(0xFF8A5A19))
                 Text("Identity fingerprint", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 Text(identity, fontSize = 11.sp, color = Color(0xFF718096))
             }
