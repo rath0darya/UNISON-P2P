@@ -165,7 +165,7 @@ internal class UnisonWebRtcTransport(
                     if (!validCode(from) || from == normalize(ownCode)) return
                     targetCode = from
                     targetName = packet.optString("fromName").ifBlank { from }
-                    callback.onPeerName(targetName)
+                    main.post { callback.onPeerName(targetName) }
                     postStatus("Incoming pairing request from $targetName")
                     ensurePeerConnection(createDataChannel = false)
                 }
