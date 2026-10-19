@@ -222,10 +222,11 @@ class LanP2PTransport(
             val hello = reader.readLine()?.let { JSONObject(it) } ?: throw IllegalStateException("No peer handshake")
             val remoteCode = normalize(hello.optString("code"))
             if (hello.optString("type") != "hello" || remoteCode.length != 28 ||
-                remoteCode.any { it !in ALPHABET } || expected == null || remoteCode != expected) {
+                remoteCode.any { it !in ALPHABET } || (expected != null && remoteCode != expected)) {
                 throw SecurityException("Peer code did not match")
             }
             if (remoteCode == normalize(myCode)) throw SecurityException("Self connection rejected")
+            if (expected == null) expectedPeerCode = remoteCode
             val old = activeSocket
             activeSocket = socket
             activeWriter = writer
