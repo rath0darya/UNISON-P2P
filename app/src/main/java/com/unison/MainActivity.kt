@@ -229,10 +229,8 @@ private fun UnisonApp() {
                     draft = messageDraft,
                     onDraftChange = { messageDraft = it },
                     onSend = {
-                        val body = messageDraft.trim()
-                        if (body.isNotEmpty()) {
-                            messages.add(ChatMessage(body, nowTime(), true, 1, System.currentTimeMillis()))
-                            messageDraft = ""
+                        if (messageDraft.isNotBlank()) {
+                            Toast.makeText(context, "Message not sent: live peer-to-peer transport is not implemented yet.", Toast.LENGTH_LONG).show()
                         }
                     },
                     onMessageInfo = { showInfo = it }
@@ -418,44 +416,109 @@ private fun UnisonApp() {
 private fun ChatList(modifier: Modifier, peerDisplayName: String, onOpen: (String) -> Unit) {
     var search by remember { mutableStateOf("") }
     val chats = emptyList<ChatItem>()
-    Column(modifier.fillMaxSize().background(Color.White)) {
-        Surface(color = Color.White) {
-            OutlinedTextField(
-                value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
-                placeholder = { Text("Search chats and usernames") }, singleLine = true,
-                shape = RoundedCornerShape(24.dp)
-            )
+    Column(modifier.fillMaxSize().background(Color(0xFFF4F7FB))) {
+        Surface(color = Color.White, shadowElevation = 1.dp) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.size(48.dp).background(UnisonBlue, RoundedCornerShape(16.dp)), contentAlignment = Alignment.Center) {
+                        Text("U", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Black)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text("Unison", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color(0xFF17263C))
+                        Text("Your conversations, your space", fontSize = 12.sp, color = Color(0xFF718096))
+                    }
+                    Surface(color = Color(0xFFEAF2FF), shape = CircleShape) {
+                        Icon(Icons.Default.Lock, "Privacy", tint = UnisonBlue, modifier = Modifier.padding(10.dp).size(20.dp))
+                    }
+                }
+                OutlinedTextField(
+                    value = search, onValueChange = { search = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Search people and messages") },
+                    leadingIcon = { Icon(Icons.Default.Chat, null, tint = Color(0xFF8290A2)) },
+                    trailingIcon = { if (search.isNotEmpty()) IconButton(onClick = { search = "" }) { Icon(Icons.Default.Close, "Clear search") } },
+                    singleLine = true,
+                    shape = RoundedCornerShape(18.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = Color(0xFFF5F7FA),
+                        focusedContainerColor = Color(0xFFF5F7FA),
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedBorderColor = UnisonBlue
+                    )
+                )
+            }
+        }
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp),
+            shape = RoundedCornerShape(22.dp),
+            color = Color(0xFF1769E0),
+            shadowElevation = 4.dp
+        ) {
+            Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Box(Modifier.size(54.dp).background(Color.White.copy(alpha = 0.16f), RoundedCornerShape(18.dp)), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Default.Chat, null, tint = Color.White, modifier = Modifier.size(28.dp))
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text("Start a conversation", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text("Pair directly with someone to get started.", color = Color.White.copy(alpha = 0.88f), fontSize = 12.sp)
+                }
+                Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(24.dp))
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("MESSAGES", fontSize = 11.sp, letterSpacing = 1.3.sp, fontWeight = FontWeight.Bold, color = Color(0xFF8390A1))
+            Spacer(Modifier.weight(1f))
+            Text("0 chats", fontSize = 12.sp, color = Color(0xFF8390A1))
         }
         if (chats.isEmpty()) {
-            Column(Modifier.fillMaxSize().padding(28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                Icon(Icons.Default.Chat, null, tint = UnisonBlue, modifier = Modifier.size(44.dp))
-                Spacer(Modifier.height(12.dp))
-                Text("No chats yet", fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(6.dp))
-                Text("Pair with a person to start a conversation. No demo conversations are included.", color = Color(0xFF6C7683))
+            Column(
+                Modifier.fillMaxSize().padding(horizontal = 34.dp, vertical = 18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Box(Modifier.size(116.dp).background(Color(0xFFE6EEFC), CircleShape), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(78.dp).background(Color.White, CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Chat, null, tint = UnisonBlue, modifier = Modifier.size(38.dp))
+                    }
+                }
+                Spacer(Modifier.height(22.dp))
+                Text("Your chat list is waiting", fontSize = 21.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1C2B40))
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "No sample conversations here. Pairing and live message delivery must be connected before real chats can appear.",
+                    color = Color(0xFF718096), fontSize = 13.sp, lineHeight = 19.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+                Spacer(Modifier.height(18.dp))
+                Surface(color = Color.White, shape = RoundedCornerShape(14.dp), shadowElevation = 1.dp) {
+                    Row(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.size(8.dp).background(Color(0xFFE3A33B), CircleShape))
+                        Text("Connection engine not ready", color = Color(0xFF6D7888), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
             }
-        } else LazyColumn {
+        } else LazyColumn(contentPadding = PaddingValues(bottom = 16.dp)) {
             items(chats.filter { it.name.contains(search, ignoreCase = true) || it.preview.contains(search, ignoreCase = true) }) { chat ->
                 Row(
-                    Modifier.fillMaxWidth().clickable { onOpen(chat.name) }.padding(horizontal = 16.dp, vertical = 12.dp),
+                    Modifier.fillMaxWidth().clickable { onOpen(chat.name) }.padding(horizontal = 18.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(Modifier.size(52.dp).background(chat.color, CircleShape), contentAlignment = Alignment.Center) {
+                    Box(Modifier.size(54.dp).background(chat.color, CircleShape), contentAlignment = Alignment.Center) {
                         Text(chat.name.take(1), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                     }
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(13.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(chat.name, fontWeight = FontWeight.SemiBold)
-                        Text(chat.preview, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 13.sp, color = Color(0xFF6C7683))
+                        Text(chat.name, fontWeight = FontWeight.SemiBold, color = Color(0xFF1C2B40))
+                        Text(chat.preview, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 13.sp, color = Color(0xFF718096))
                     }
                     Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(chat.time, fontSize = 11.sp, color = Color(0xFF77818C))
+                        Text(chat.time, fontSize = 11.sp, color = Color(0xFF8390A1))
                         if (chat.unread > 0) Box(Modifier.background(UnisonBlue, CircleShape).padding(horizontal = 7.dp, vertical = 3.dp)) {
                             Text(chat.unread.toString(), color = Color.White, fontSize = 10.sp)
                         }
                     }
                 }
-                HorizontalDivider(color = Color(0xFFF0F2F5), modifier = Modifier.padding(start = 80.dp))
+                HorizontalDivider(color = Color(0xFFE8EDF4), modifier = Modifier.padding(start = 85.dp))
             }
         }
     }
@@ -473,49 +536,59 @@ private fun ChatScreen(
 ) {
     val context = LocalContext.current
     val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) Toast.makeText(context, "Photo selected. Sending will work when direct messaging is connected.", Toast.LENGTH_LONG).show()
+        if (uri != null) Toast.makeText(context, "Photo selected, but file delivery is not connected yet.", Toast.LENGTH_LONG).show()
     }
     val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) Toast.makeText(context, "Video selected. Sending will work when direct messaging is connected.", Toast.LENGTH_LONG).show()
+        if (uri != null) Toast.makeText(context, "Video selected, but file delivery is not connected yet.", Toast.LENGTH_LONG).show()
     }
     val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) Toast.makeText(context, "Document selected. Sending will work when direct messaging is connected.", Toast.LENGTH_LONG).show()
+        if (uri != null) Toast.makeText(context, "Document selected, but file delivery is not connected yet.", Toast.LENGTH_LONG).show()
     }
     val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) Toast.makeText(context, "Audio selected. Sending will work when direct messaging is connected.", Toast.LENGTH_LONG).show()
+        if (uri != null) Toast.makeText(context, "Audio selected, but file delivery is not connected yet.", Toast.LENGTH_LONG).show()
     }
     val cameraPicker = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
-        if (bitmap != null) Toast.makeText(context, "Photo captured. Sending will work when direct messaging is connected.", Toast.LENGTH_LONG).show()
+        if (bitmap != null) Toast.makeText(context, "Photo captured, but file delivery is not connected yet.", Toast.LENGTH_LONG).show()
     }
     val cameraPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) cameraPicker.launch(null)
         else Toast.makeText(context, "Camera permission is needed to take a photo.", Toast.LENGTH_LONG).show()
     }
-    Column(modifier.fillMaxSize().background(Color(0xFFEAF0F5))) {
+    var showAttachments by remember { mutableStateOf(false) }
+    Column(modifier.fillMaxSize().background(Color(0xFFE8EFF6))) {
         LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 10.dp),
-            reverseLayout = false,
-            contentPadding = PaddingValues(vertical = 12.dp),
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (messages.isEmpty()) item {
-                Surface(color = Color(0xFFE0EAF5), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
-                    Text("No messages yet. Direct peer-to-peer delivery is not connected in this build.", Modifier.padding(10.dp), fontSize = 12.sp, color = Color(0xFF425A70))
+                Column(Modifier.fillMaxWidth().padding(top = 54.dp, bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(92.dp).background(Color.White.copy(alpha = 0.86f), CircleShape), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Chat, null, tint = UnisonBlue, modifier = Modifier.size(40.dp))
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Text("Say hello", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF23364D))
+                    Spacer(Modifier.height(6.dp))
+                    Text("Your messages will appear here after a real connection is established.", fontSize = 13.sp, lineHeight = 19.sp, color = Color(0xFF708198), textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 28.dp))
+                    Spacer(Modifier.height(16.dp))
+                    Surface(color = Color(0xFFDCE7F4), shape = RoundedCornerShape(12.dp)) {
+                        Text("No demo messages", Modifier.padding(horizontal = 13.dp, vertical = 8.dp), fontSize = 12.sp, color = Color(0xFF526780))
+                    }
                 }
             }
             items(messages) { message ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = if (message.outgoing) Arrangement.End else Arrangement.Start) {
                     Surface(
-                        color = if (message.outgoing) BubbleGreen else Color.White,
-                        shape = RoundedCornerShape(16.dp),
+                        color = if (message.outgoing) Color(0xFFD8F7C8) else Color.White,
+                        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = if (message.outgoing) 18.dp else 5.dp, bottomEnd = if (message.outgoing) 5.dp else 18.dp),
                         shadowElevation = 1.dp,
                         modifier = Modifier.widthIn(max = 320.dp).clickable { onMessageInfo(message) }
                     ) {
-                        Column(Modifier.padding(start = 12.dp, top = 9.dp, end = 10.dp, bottom = 6.dp)) {
-                            Text(message.text, fontSize = 15.sp, color = Color(0xFF17202A))
+                        Column(Modifier.padding(start = 13.dp, top = 10.dp, end = 11.dp, bottom = 7.dp)) {
+                            Text(message.text, fontSize = 15.sp, lineHeight = 21.sp, color = Color(0xFF17283C))
                             Spacer(Modifier.height(4.dp))
                             Row(Modifier.align(Alignment.End), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(message.time, fontSize = 10.sp, color = Color(0xFF66736A))
+                                Text(message.time, fontSize = 10.sp, color = Color(0xFF748174))
                                 if (message.outgoing) TickMark(message.status)
                             }
                         }
@@ -523,61 +596,77 @@ private fun ChatScreen(
                 }
             }
         }
-        Row(
-            Modifier.fillMaxWidth().background(Color.White).imePadding().navigationBarsPadding().padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = draft, onValueChange = onDraftChange, modifier = Modifier.weight(1f),
-                placeholder = { Text("Message") }, maxLines = 4,
-                shape = RoundedCornerShape(26.dp)
-            )
-            Spacer(Modifier.width(8.dp))
-            var showAttachments by remember { mutableStateOf(false) }
-            IconButton(onClick = { showAttachments = true }) { Icon(Icons.Default.Add, "Attachments") }
-            IconButton(onClick = onSend, modifier = Modifier.size(48.dp).background(UnisonBlue, CircleShape)) {
-                Icon(Icons.Default.Send, "Send message", tint = Color.White)
+        Surface(color = Color.White, shadowElevation = 8.dp) {
+            Row(
+                Modifier.fillMaxWidth().imePadding().navigationBarsPadding().padding(horizontal = 10.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.Bottom,
+                horizontalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
+                IconButton(onClick = { showAttachments = true }, modifier = Modifier.size(44.dp).background(Color(0xFFF1F5FA), CircleShape)) {
+                    Icon(Icons.Default.Add, "Attach file", tint = Color(0xFF536A85))
+                }
+                OutlinedTextField(
+                    value = draft, onValueChange = onDraftChange,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Message", color = Color(0xFF8B98A9)) },
+                    maxLines = 5,
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = Color(0xFFF8FAFC),
+                        focusedContainerColor = Color(0xFFF8FAFC),
+                        unfocusedBorderColor = Color(0xFFE7ECF2),
+                        focusedBorderColor = UnisonBlue
+                    )
+                )
+                IconButton(onClick = onSend, modifier = Modifier.size(46.dp).background(UnisonBlue, CircleShape)) {
+                    Icon(Icons.Default.Send, "Send message", tint = Color.White)
+                }
             }
-            if (showAttachments) AlertDialog(
-                onDismissRequest = { showAttachments = false }, title = { Text("Attach to message") },
-                text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AttachmentTile("Gallery", "Photos and images", Icons.Default.Contacts) {
-                        showAttachments = false
-                        val pick = Intent(Intent.ACTION_GET_CONTENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE)
-                        runCatching { (context as? ComponentActivity)?.startActivityForResult(Intent.createChooser(pick, "Choose photo"), 451) }.onFailure { Toast.makeText(context, "No photo picker is available.", Toast.LENGTH_SHORT).show() }
-                    }
-                    AttachmentTile("Videos", "Choose a video", Icons.Default.Videocam) {
-                        showAttachments = false
-                        val pick = Intent(Intent.ACTION_GET_CONTENT).setType("video/*").addCategory(Intent.CATEGORY_OPENABLE)
-                        runCatching { (context as? ComponentActivity)?.startActivityForResult(Intent.createChooser(pick, "Choose video"), 452) }.onFailure { Toast.makeText(context, "No video picker is available.", Toast.LENGTH_SHORT).show() }
-                    }
-                    AttachmentTile("Documents", "PDFs and other files", Icons.Default.Info) {
-                        showAttachments = false
-                        documentPicker.launch(arrayOf("*/*"))
-                    }
-                    AttachmentTile("Audio", "Choose an audio file", Icons.Default.Call) {
-                        showAttachments = false
-                        audioPicker.launch(arrayOf("audio/*"))
-                    }
-                    AttachmentTile("Camera", "Take a photo", Icons.Default.Videocam) {
+        }
+    }
+    if (showAttachments) AlertDialog(
+        onDismissRequest = { showAttachments = false },
+        title = { Text("Share with $peerName", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AttachmentTile("Gallery", "Photos", Icons.Default.Contacts) { showAttachments = false; galleryPicker.launch("image/*") }
+                    AttachmentTile("Camera", "Take photo", Icons.Default.Videocam) {
                         showAttachments = false
                         if (context.checkSelfPermission(android.Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) cameraPicker.launch(null)
                         else cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
                     }
-                    AttachmentTile("Location", "Share a place", Icons.Default.Info) { showAttachments = false; Toast.makeText(context, "Location sharing is not connected in this build.", Toast.LENGTH_LONG).show() }
-                    AttachmentTile("Contact", "Share contact details", Icons.Default.Contacts) { showAttachments = false; Toast.makeText(context, "Contact sharing is not connected in this build.", Toast.LENGTH_LONG).show() }
-                } }, confirmButton = { TextButton(onClick = { showAttachments = false }) { Text("Close") } }
-            )
-        }
-    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AttachmentTile("Video", "Clips", Icons.Default.Videocam) { showAttachments = false; videoPicker.launch("video/*") }
+                    AttachmentTile("Documents", "PDF and files", Icons.Default.Info) { showAttachments = false; documentPicker.launch(arrayOf("*/*")) }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AttachmentTile("Audio", "Music and voice", Icons.Default.Call) { showAttachments = false; audioPicker.launch(arrayOf("audio/*")) }
+                    AttachmentTile("Location", "Places", Icons.Default.Info) { showAttachments = false; Toast.makeText(context, "Location sharing is not connected yet.", Toast.LENGTH_LONG).show() }
+                }
+                AttachmentTile("Contact", "Share a contact", Icons.Default.Contacts) { showAttachments = false; Toast.makeText(context, "Contact sharing is not connected yet.", Toast.LENGTH_LONG).show() }
+                Text("Picker works on this device. Sending attachments requires the live transport, which is not implemented yet.", fontSize = 11.sp, color = Color(0xFF8A5A19))
+            }
+        },
+        confirmButton = { TextButton(onClick = { showAttachments = false }) { Text("Close") } }
+    )
 }
 
 @Composable
 private fun AttachmentTile(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
-    Surface(Modifier.fillMaxWidth().clickable(onClick = onClick), color = AppBg, shape = RoundedCornerShape(14.dp)) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Icon(icon, null, tint = UnisonBlue, modifier = Modifier.size(25.dp))
-            Column { Text(title, fontWeight = FontWeight.SemiBold); Text(subtitle, fontSize = 12.sp, color = Color(0xFF6C7683)) }
+    Surface(
+        Modifier.weight(1f).clickable(onClick = onClick),
+        color = Color(0xFFF3F6FA),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE7EDF5))
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.Start) {
+            Box(Modifier.size(38.dp).background(Color(0xFFE2ECFF), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
+                Icon(icon, null, tint = UnisonBlue, modifier = Modifier.size(21.dp))
+            }
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 12.sp, color = Color(0xFF24364B))
+            Text(subtitle, fontSize = 10.sp, color = Color(0xFF748399), maxLines = 2)
         }
     }
 }
