@@ -1,8 +1,12 @@
 package com.unison
 
 import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.widget.Toast
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -67,6 +71,12 @@ private fun UnisonApp() {
     var tab by remember { mutableStateOf(Tab.CHATS) }
     var activeChat by remember { mutableStateOf<String?>(null) }
     var showIdentity by remember { mutableStateOf(false) }
+    var showPairDialog by remember { mutableStateOf(false) }
+    var peerCodeInput by remember { mutableStateOf("") }
+    var pairMessage by remember { mutableStateOf<String?>(null) }
+    var yourDisplayName by remember { mutableStateOf("Me") }
+    var peerDisplayName by remember { mutableStateOf("Arjun") }
+    var presence by remember { mutableStateOf("Online") }
     var showInfo by remember { mutableStateOf<ChatMessage?>(null) }
     var identity by remember { mutableStateOf("Generating identity…") }
     var pairingCode by remember { mutableStateOf(IdentityVault.newPairingCode()) }
@@ -76,6 +86,15 @@ private fun UnisonApp() {
         ChatMessage("Private chat, directly between devices where the network allows it.", "10:43 AM", true, 3, System.currentTimeMillis() - 60000, System.currentTimeMillis() - 55000, System.currentTimeMillis() - 40000)
     ) }
     LaunchedEffect(Unit) { identity = runCatching { IdentityVault.publicIdentityFingerprint() }.getOrElse { "Identity unavailable" } }
+    BackHandler(enabled = showPairDialog || showIdentity || showInfo != null || activeChat != null || tab != Tab.CHATS) {
+        when {
+            showPairDialog -> { showPairDialog = false; pairMessage = null }
+            showIdentity -> showIdentity = false
+            showInfo != null -> showInfo = null
+            activeChat != null -> { activeChat = null; messageDraft = "" }
+            tab != Tab.CHATS -> tab = Tab.CHATS
+        }
+    }
 
     MaterialTheme(
         colorScheme = lightColorScheme(
@@ -112,7 +131,7 @@ private fun UnisonApp() {
                         title = {
                             Column {
                                 Text(activeChat ?: "", fontWeight = FontWeight.SemiBold)
-                                Text("Peer status unavailable in demo", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(if (presence == "Offline") "You are offline" else "Direct status not connected", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         },
                         navigationIcon = { IconButton(onClick = { activeChat = null }) { Icon(Icons.Default.ArrowBack, "Back") } },
@@ -181,11 +200,46 @@ private fun UnisonApp() {
                     Text(identity, fontSize = 12.sp)
                     Text("Pairing code (34 characters)", fontWeight = FontWeight.SemiBold)
                     Text(pairingCode, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    OutlinedButton(onClick = {
+                        context.getSystemService(ClipboardManager::class.java)
+                            .setPrimaryClip(ClipData.newPlainText("UNISON pairing code", pairingCode))
+                        Toast.makeText(context, "Pairing code copied", Toast.LENGTH_SHORT).show()
+                    }, modifier = Modifier.fillMaxWidth()) { Text("Copy pairing code") }
                     Text("Share this code privately. A code alone cannot bypass carrier NAT or make an unreachable phone connect.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
             confirmButton = { TextButton(onClick = { pairingCode = IdentityVault.newPairingCode() }) { Text("New code") } },
-            dismissButton = { TextButton(onClick = { showIdentity = false }) { Text("Close") } }
+            dismissButton = { TextButton(onClick = { showIdentity = false; showPairDialog = true }) { Text("Pair with code") } }
+        )
+
+        if (showPairDialog) AlertDialog(
+            onDismissRequest = { showPairDialog = false; pairMessage = null },
+            title = { Text("Pair with a person") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Enter the other person's UNISON pairing code.")
+                    OutlinedTextField(
+                        value = peerCodeInput,
+                        onValueChange = { value -> peerCodeInput = value.uppercase().filter { it.isLetterOrDigit() || it == '-' }.take(40) },
+                        label = { Text("Pairing code") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    pairMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) }
+                    Text("This build can validate the code format, but live peer-to-peer transport is not connected yet.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val compact = peerCodeInput.replace("-", "")
+                    pairMessage = if (compact.length != 28 || compact.any { it !in "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" }) {
+                        "Invalid format. Use 28 uppercase letters/digits with hyphens between groups."
+                    } else {
+                        "Code format is valid, but a live connection cannot be established in this build yet."
+                    }
+                }) { Text("Validate code") }
+            },
+            dismissButton = { TextButton(onClick = { showPairDialog = false; pairMessage = null }) { Text("Close") } }
         )
 
         showInfo?.let { message ->
@@ -209,6 +263,7 @@ private fun UnisonApp() {
 
 @Composable
 private fun ChatList(modifier: Modifier, onOpen: (String) -> Unit) {
+    var search by remember { mutableStateOf("") }
     val chats = listOf(
         ChatItem("UNISON Notes", "Your conversations stay encrypted locally.", "10:44", 0, Color(0xFF4D8DE8)),
         ChatItem("Arjun", "Message delivery depends on a direct connection.", "Yesterday", 2, Color(0xFF16A085)),
@@ -217,13 +272,13 @@ private fun ChatList(modifier: Modifier, onOpen: (String) -> Unit) {
     Column(modifier.fillMaxSize().background(Color.White)) {
         Surface(color = Color.White) {
             OutlinedTextField(
-                value = "", onValueChange = {}, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+                value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
                 placeholder = { Text("Search chats and usernames") }, singleLine = true,
                 shape = RoundedCornerShape(24.dp)
             )
         }
         LazyColumn {
-            items(chats) { chat ->
+            items(chats.filter { it.name.contains(search, ignoreCase = true) || it.preview.contains(search, ignoreCase = true) }) { chat ->
                 Row(
                     Modifier.fillMaxWidth().clickable { onOpen(chat.name) }.padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -338,7 +393,7 @@ private fun EmptyPanel(modifier: Modifier, title: String, description: String) {
 
 @Composable
 private fun SettingsPanel(modifier: Modifier, identity: String, onIdentity: () -> Unit, onBackground: () -> Unit) {
-    Column(modifier.fillMaxSize().background(Color.White).padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(modifier.fillMaxSize().background(Color.White).padding(18.dp).verticalScroll(androidx.compose.foundation.rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Settings", fontSize = 25.sp, fontWeight = FontWeight.Bold)
         Text("Privacy, identity and local storage", color = Color(0xFF687481))
         SettingsItem("Identity & pairing code", "Manage your public fingerprint", onIdentity)
