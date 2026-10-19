@@ -69,18 +69,23 @@ private data class ChatMessage(val text: String, val time: String, val outgoing:
 @Composable
 private fun UnisonApp() {
     val context = LocalContext.current
+    val localPrefs = remember { context.getSharedPreferences("unison_user_preferences", android.content.Context.MODE_PRIVATE) }
     var tab by remember { mutableStateOf(Tab.CHATS) }
     var activeChat by remember { mutableStateOf<String?>(null) }
     var showIdentity by remember { mutableStateOf(false) }
     var showPairDialog by remember { mutableStateOf(false) }
     var peerCodeInput by remember { mutableStateOf("") }
     var pairMessage by remember { mutableStateOf<String?>(null) }
-    var yourDisplayName by remember { mutableStateOf("Me") }
-    var peerDisplayName by remember { mutableStateOf("Arjun") }
-    var presence by remember { mutableStateOf("Online") }
+    var yourDisplayName by remember { mutableStateOf(localPrefs.getString("your_display_name", "Me") ?: "Me") }
+    var peerDisplayName by remember { mutableStateOf(localPrefs.getString("peer_display_name", "Arjun") ?: "Arjun") }
+    var presence by remember { mutableStateOf(localPrefs.getString("presence", "Online") ?: "Online") }
     var showInfo by remember { mutableStateOf<ChatMessage?>(null) }
     var identity by remember { mutableStateOf("Generating identity…") }
-    var pairingCode by remember { mutableStateOf(IdentityVault.newPairingCode()) }
+    var pairingCode by remember {
+        mutableStateOf(localPrefs.getString("pairing_code", null) ?: IdentityVault.newPairingCode().also {
+            localPrefs.edit().putString("pairing_code", it).apply()
+        })
+    }
     var messageDraft by remember { mutableStateOf("") }
     val messages = remember { mutableStateListOf(
         ChatMessage("Hey! Welcome to UNISON.", "10:42 AM", false, 2, System.currentTimeMillis() - 120000),
@@ -185,10 +190,10 @@ private fun UnisonApp() {
                     onIdentity = { showIdentity = true },
                     yourDisplayName = yourDisplayName,
                     peerDisplayName = peerDisplayName,
-                    onYourDisplayName = { yourDisplayName = it },
-                    onPeerDisplayName = { peerDisplayName = it },
+                    onYourDisplayName = { yourDisplayName = it; localPrefs.edit().putString("your_display_name", it).apply() },
+                    onPeerDisplayName = { peerDisplayName = it; localPrefs.edit().putString("peer_display_name", it).apply() },
                     presence = presence,
-                    onPresence = { presence = it },
+                    onPresence = { presence = it; localPrefs.edit().putString("presence", it).apply() },
                     onPair = { showPairDialog = true },
                     onRequestNotifications = {
                         if (android.os.Build.VERSION.SDK_INT >= 33 &&
@@ -222,7 +227,10 @@ private fun UnisonApp() {
                     Text("Share this code privately. A code alone cannot bypass carrier NAT or make an unreachable phone connect.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             },
-            confirmButton = { TextButton(onClick = { pairingCode = IdentityVault.newPairingCode() }) { Text("New code") } },
+            confirmButton = { TextButton(onClick = {
+                pairingCode = IdentityVault.newPairingCode()
+                localPrefs.edit().putString("pairing_code", pairingCode).apply()
+            }) { Text("New code") } },
             dismissButton = { TextButton(onClick = { showIdentity = false; showPairDialog = true }) { Text("Pair with code") } }
         )
 
