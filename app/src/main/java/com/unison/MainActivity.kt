@@ -121,6 +121,7 @@ private fun UnisonApp() {
     }
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= 33 && !notificationAllowed) notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        else if (!notificationAllowed) showPermissionGate = true
     }
     LaunchedEffect(notificationAllowed) {
         if (notificationAllowed && !localPrefs.getBoolean("optional_permissions_prompted", false)) {
@@ -302,7 +303,7 @@ private fun UnisonApp() {
             }
         )
 
-        if (!notificationAllowed || showPermissionGate) AlertDialog(
+        if (showPermissionGate) AlertDialog(
             onDismissRequest = { },
             title = { Text("Notifications are required") },
             text = { Text("Unison needs notifications enabled for message and call alerts. Allow notifications to continue, or enable them in Android App info. Camera, microphone and media access remain your choice.") },
